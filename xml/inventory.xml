@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<CmData xmlns="http://nimsoft.com/2014/05/cm-data-import2">
+    <DefaultOrigin>TEST</DefaultOrigin>
+    <PasswordsEncrypted>true</PasswordsEncrypted>
+    <Devices>
+    </Devices>
+    <SnmpV3Profiles> 
+    </SnmpV3Profiles>
+</CmData>
