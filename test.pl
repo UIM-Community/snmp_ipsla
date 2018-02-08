@@ -13,10 +13,10 @@ my ($session, $error) = Net::SNMP->session(
     -version => "3",
     -timeout => "30",
     -retries => "3",
-    -username => "SIC-Manager",
-    -authpassword => "SIC-SCR-AUTH",
+    -username => "TEST",
+    -authpassword => "PW",
     -authprotocol => "sha",
-    -privpassword => "SIC-SCR-PRIV",
+    -privpassword => "PW",
     -privprotocol => "aes"
 );
 die $error if $error ne "";
