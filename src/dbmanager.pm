@@ -8,19 +8,28 @@ use Data::Dumper;
 # Third-party package(s)
 use DBI;
 
+# use Internal package(s)
+use src::utils;
+
+# HashMap of SNMP records
 my %SNMP_VMatch = (
     v1 => 'nokia_ipsla_snmp_v1',
     v2 => 'nokia_ipsla_snmp_v2',
     v3 => 'nokia_ipsla_snmp_v3'
 );
 
+# Static module variable
+our $encryption = 0;
+
 # DBManager Prototype Constructor
 sub new {
-    my ($class, $dbName) = @_;
+    my ($class, $dbName, $dbKey) = @_;
+    my $DB = DBI->connect("dbi:SQLcipher:uri=file:${dbName}?mode=rwc", "", "", {
+        RaiseError => 1
+    });
+    $DB->do("pragma key =\"$dbKey\";") if $encryption == 1;
     return bless({
-        DB => DBI->connect("dbi:SQLcipher:uri=file:${dbName}?mode=rwc", "admin", "admin", {
-            RaiseError => 1
-        })
+        DB => $DB
     }, ref($class) || $class);
 }
 
@@ -43,11 +52,12 @@ sub upsertXMLObject {
     if(scalar(@devicesToCreate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $device = shift @devicesToCreate)) {
-            $self->{DB}->prepare('INSERT INTO nokia_ipsla_device (uuid, snmp_uuid, name, ip) VALUES (?, ?, ?, ?)')->execute(
+            $self->{DB}->prepare('INSERT INTO nokia_ipsla_device (uuid, snmp_uuid, name, ip, dev_id) VALUES (?, ?, ?, ?, ?)')->execute(
                 $device->{ElementUUID},
                 $device->{SnmpProfileUUID},
                 $device->{Label},
-                $device->{PrimaryIPV4Address}
+                $device->{PrimaryIPV4Address},
+                src::utils::generateDeviceId()
             );
         }
         $self->{DB}->commit;
@@ -90,7 +100,7 @@ sub upsertXMLObject {
     if(scalar(@snmpV3ToCreate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $snmp = shift @snmpV3ToCreate)) {
-            my $Query = 'INSERT INTO nokia_ipsla_snmp_v3 (uuid, description, username, auth_protocol, auth_key, priv_protocol, priv_key) VALUES (?, ?, ?, ?, ?, ?, ?)';
+            my $Query = 'INSERT INTO nokia_ipsla_snmp_v3 (uuid, description, username, auth_protocol, auth_key, priv_protocol, priv_key, port) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
             $self->{DB}->prepare($Query)->execute(
                 $snmp->{SnmpProfileUUID},
                 $snmp->{Description},
@@ -98,7 +108,8 @@ sub upsertXMLObject {
                 $snmp->{AuthenticationProtocol},
                 $snmp->{AuthenticationKey},
                 $snmp->{PrivacyProtocol},
-                $snmp->{PrivacyKey}
+                $snmp->{PrivacyKey},
+                $snmp->{Port}
             );
         }
         $self->{DB}->commit;
@@ -109,17 +120,19 @@ sub upsertXMLObject {
     if(scalar(@snmpV1ToCreate) > 0 || scalar(@snmpV2ToCreate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $snmp = shift @snmpV1ToCreate)) {
-            $self->{DB}->prepare('INSERT INTO nokia_ipsla_snmp_v1 (uuid, description, community) VALUES (?, ?, ?)')->execute(
+            $self->{DB}->prepare('INSERT INTO nokia_ipsla_snmp_v1 (uuid, description, community, port) VALUES (?, ?, ?, ?)')->execute(
                 $snmp->{SnmpProfileUUID},
                 $snmp->{Description},
-                $snmp->{Community}
+                $snmp->{Community},
+                $snmp->{Port}
             );
         }
         while (defined(my $snmp = shift @snmpV2ToCreate)) {
-            $self->{DB}->prepare('INSERT INTO nokia_ipsla_snmp_v2 (uuid, description, community) VALUES (?, ?, ?)')->execute(
+            $self->{DB}->prepare('INSERT INTO nokia_ipsla_snmp_v2 (uuid, description, community, port) VALUES (?, ?, ?, ?)')->execute(
                 $snmp->{SnmpProfileUUID},
                 $snmp->{Description},
-                $snmp->{Community}
+                $snmp->{Community},
+                $snmp->{Port}
             );
         }
         $self->{DB}->commit;
@@ -131,7 +144,7 @@ sub upsertXMLObject {
     if(scalar(@snmpV3ToUpdate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $snmp = shift @snmpV3ToUpdate)) {
-            my $Query = 'UPDATE nokia_ipsla_snmp_v3 SET description=?, username=?, auth_protocol=?, auth_key=?, priv_protocol=?, priv_key=? WHERE uuid=?';
+            my $Query = 'UPDATE nokia_ipsla_snmp_v3 SET description=?, username=?, auth_protocol=?, auth_key=?, priv_protocol=?, priv_key=?, port=? WHERE uuid=?';
             $self->{DB}->prepare($Query)->execute(
                 $snmp->{Description},
                 $snmp->{UserName},
@@ -139,6 +152,7 @@ sub upsertXMLObject {
                 $snmp->{AuthenticationKey},
                 $snmp->{PrivacyProtocol},
                 $snmp->{PrivacyKey},
+                $snmp->{Port},
                 $snmp->{SnmpProfileUUID}
             );
         }
@@ -150,16 +164,18 @@ sub upsertXMLObject {
     if(scalar(@snmpV1ToUpdate) > 0 || scalar(@snmpV2ToUpdate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $snmp = shift @snmpV1ToUpdate)) {
-            $self->{DB}->prepare('UPDATE nokia_ipsla_snmp_v1 SET description=?, community=? WHERE uuid=?')->execute(
+            $self->{DB}->prepare('UPDATE nokia_ipsla_snmp_v1 SET description=?, community=?, port=? WHERE uuid=?')->execute(
                 $snmp->{Description},
                 $snmp->{Community},
+                $snmp->{Port},
                 $snmp->{SnmpProfileUUID},
             );
         }
         while (defined(my $snmp = shift @snmpV2ToUpdate)) {
-            $self->{DB}->prepare('UPDATE nokia_ipsla_snmp_v2 SET description=?, community=? WHERE uuid=?')->execute(
+            $self->{DB}->prepare('UPDATE nokia_ipsla_snmp_v2 SET description=?, community=?, port=? WHERE uuid=?')->execute(
                 $snmp->{Description},
                 $snmp->{Community},
+                $snmp->{Port},
                 $snmp->{SnmpProfileUUID}
             );
         }
@@ -177,8 +193,9 @@ sub checkAttributes {
 
     my @toCreate = ();
     my @toUpdate = ();
-    foreach my $key (keys %{ $hashRef }) {
-        my $value = $hashRef->{$key};
+    my %Hash = %{ $hashRef };
+    foreach my $key (keys %Hash) {
+        my $value = $Hash{$key};
         my ($rowCount) = $self->{DB}->selectrow_array("SELECT count(*) FROM nokia_ipsla_device_attr WHERE dev_uuid = \"$device->{uuid}\" AND key = \"$key\"");
         my $payload = {
             key => $key,
@@ -213,9 +230,31 @@ sub checkAttributes {
     }
 }
 
+# update pollable
+sub updatePollable {
+    my ($self, $uuid, $pollable) = @_;
+    $self->{DB}->prepare('UPDATE nokia_ipsla_device SET is_pollable=? WHERE uuid=?')->execute(
+        $pollable,
+        $uuid
+    );
+}
+
+# Get pollable devices!
 sub pollable_devices {
     my ($self) = @_; 
     my $sth = $self->{DB}->prepare('SELECT * FROM v_pollable_devices');
+    $sth->execute();
+    my @rows = ();
+    while(my $row = $sth->fetchrow_hashref) {
+        push(@rows, $row);
+    }
+    return \@rows;
+}
+
+# Get unpollable devices!
+sub unpollable_devices {
+    my ($self) = @_; 
+    my $sth = $self->{DB}->prepare('SELECT * FROM v_unpollable_devices');
     $sth->execute();
     my @rows = ();
     while(my $row = $sth->fetchrow_hashref) {
@@ -237,14 +276,24 @@ sub import_def {
     $self->{DB}->do("$SQLQuery");
     $self->{DB}->do("CREATE VIEW IF NOT EXISTS v_pollable_devices
     AS 
-    SELECT DEV1.name, DEV1.ip, '1' AS snmp_version, V1.uuid, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
+    SELECT DEV1.name, DEV1.ip, '1' AS snmp_version, V1.uuid, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
     JOIN nokia_ipsla_device AS DEV1 ON DEV1.snmp_uuid = V1.uuid WHERE DEV1.is_pollable=1
     UNION
-    SELECT DEV2.name, DEV2.ip, '2' AS snmp_version, V2.uuid, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
+    SELECT DEV2.name, DEV2.ip, '2' AS snmp_version, V2.uuid, V2.port, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
     JOIN nokia_ipsla_device AS DEV2 ON DEV2.snmp_uuid = V2.uuid WHERE DEV2.is_pollable=1
     UNION
-    SELECT DEV3.name, DEV3.ip, '3' AS snmp_version, V3.uuid, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
+    SELECT DEV3.name, DEV3.ip, '3' AS snmp_version, V3.uuid, V3.port, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
     JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=1");
+    $self->{DB}->do("CREATE VIEW IF NOT EXISTS v_unpollable_devices
+    AS 
+    SELECT DEV1.name, DEV1.ip, '1' AS snmp_version, V1.uuid, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
+    JOIN nokia_ipsla_device AS DEV1 ON DEV1.snmp_uuid = V1.uuid WHERE DEV1.is_pollable=0
+    UNION
+    SELECT DEV2.name, DEV2.ip, '2' AS snmp_version, V2.uuid, V2.port, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
+    JOIN nokia_ipsla_device AS DEV2 ON DEV2.snmp_uuid = V2.uuid WHERE DEV2.is_pollable=0
+    UNION
+    SELECT DEV3.name, DEV3.ip, '3' AS snmp_version, V3.uuid, V3.port, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
+    JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=0");
     $self->{DB}->{sqlite_allow_multiple_statements} = 0;
     return $self;
 }

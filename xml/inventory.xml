@@ -1,9 +1,28 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <CmData xmlns="http://nimsoft.com/2014/05/cm-data-import2">
-    <DefaultOrigin>TEST</DefaultOrigin>
+    <DefaultOrigin>ORIGIN</DefaultOrigin>
     <PasswordsEncrypted>true</PasswordsEncrypted>
-    <Devices>
+    <Devices>        
+		<Device>
+            <ElementUUID>2202e76b-4b01-2823-6dd8-6f4ddda5f8a8</ElementUUID>
+            <PrimaryIPV4Address>75.3.1.28</PrimaryIPV4Address>
+            <Label></Label>
+			<Vendor>NOKIA</Vendor>
+            <Description>SBB PF3</Description>
+            <PrimaryDeviceRole>Routeur</PrimaryDeviceRole>
+            <SnmpProfileUUID>543af64d-50d0-46b5-a81e-4bef93005259</SnmpProfileUUID>
+        </Device>	
     </Devices>
-    <SnmpV3Profiles> 
+    <SnmpV3Profiles>
+        <SnmpV3Profile>
+            <SnmpProfileUUID>543af64d-50d0-46b5-a81e-4bef93005259</SnmpProfileUUID>
+            <Description></Description>
+            <Port>161</Port>
+            <UserName></UserName>
+            <AuthenticationProtocol>SHA</AuthenticationProtocol>
+            <AuthenticationKey></AuthenticationKey>
+            <PrivacyProtocol>AES</PrivacyProtocol>
+            <PrivacyKey></PrivacyKey>
+        </SnmpV3Profile>		
     </SnmpV3Profiles>
-</CmData>
+</CmData>		

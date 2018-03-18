@@ -2,7 +2,6 @@ package src::xmlreader;
 
 # Perl Core package(s)
 use strict;
-use Data::Dumper;
 
 # Third-party package(s)
 use XML::Simple;
@@ -10,6 +9,9 @@ use XML::Simple;
 # Internal package(s)
 use src::device;
 use src::snmp;
+
+# Nimsoft package(s)
+use Nimbus::API;
 
 # Parser filters!
 our $filters;
@@ -37,7 +39,8 @@ sub parse {
     # Push devices (if exist).
     if(defined($ref->{Devices}) && defined($ref->{Devices}->{Device})) {
         my @devices = ();
-        foreach(@{ $ref->{Devices}->{Device} }) {
+        my @originDevices = ref($ref->{Devices}->{Device}) eq "HASH" ? ($ref->{Devices}->{Device}) : @{ $ref->{Devices}->{Device} };
+        foreach(@originDevices) {
             if(!defined($_->{Origin}) && defined($DefaultOrigin)) {
                 $_->{Origin} = $DefaultOrigin;
             }
@@ -53,6 +56,7 @@ sub parse {
                     }
                 }
             };
+            nimLog(2, $@) if $@;
             print STDERR $@ if $@;
         };
         $self->{devices} = \@devices;
@@ -65,10 +69,12 @@ sub parse {
         next if !defined($ref->{$longName});
         next if !defined($ref->{$longName}->{$name});
         my @snmp = ();
-        foreach(@{ $ref->{$longName}->{$name} }) {
+        my @originSNMP = ref($ref->{$longName}->{$name}) eq "HASH" ? ($ref->{$longName}->{$name}) : @{ $ref->{$longName}->{$name} };
+        foreach(@originSNMP) {
             eval {
                 push(@snmp, src::snmp->new($_));
             };
+            nimLog(2, $@) if $@;
             print STDERR $@ if $@;
         };
         $self->{$name} = \@snmp;
