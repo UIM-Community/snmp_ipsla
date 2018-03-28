@@ -9,7 +9,7 @@ use Nimbus::API;
 use Nimbus::PDS;
 
 # Export utils functions
-our @EXPORT_OK = qw(nimId generateAlarm parseAlarmVariable generateDeviceId generateMetId);
+our @EXPORT_OK = qw(nimId generateAlarm generateQoS parseAlarmVariable generateDeviceId generateMetId ascii_oid);
 
 sub rndStr {
     return join '', @_[ map { rand @_ } 1 .. shift ];
@@ -82,6 +82,88 @@ sub generateAlarm {
     $PDS->put("udata", $AlarmPDS, PDS_PDS);
 
     return ($PDS, $nimid);
+}
+
+# Generate NimSoft QoS PDS (And metricId if required).
+sub generateQoS {
+    my ($subject, $hashRef, $metricId) = @_;
+
+    my $PDS = Nimbus::PDS->new(); 
+    my $nimid = nimId();
+    if(!defined($metricId)) {
+        $metricId = generateMetricId();
+    }
+
+    $PDS->string("nimid",   $nimid);
+    $PDS->number("nimts",   time());
+    $PDS->string("subject", $subject);
+    $PDS->string("md5sum",  "");
+    $PDS->number("pri",     1);
+    $PDS->string("source",  $hashRef->{source}) if defined($hashRef->{source});
+    $PDS->string("robot",   $hashRef->{robot})  if defined($hashRef->{robot});
+    $PDS->string("prid",    $hashRef->{probe})  if defined($hashRef->{probe});
+    $PDS->string("origin",  $hashRef->{origin}) if defined($hashRef->{origin});
+    $PDS->string("domain",  $hashRef->{domain}) if defined($hashRef->{domain});
+    if($subject ne "QOS_DEFINITION") {
+        $PDS->string("dev_id", $hashRef->{dev_id} || '');
+        $PDS->string("met_id", $metricId);
+    }
+
+    my $udataPDS = Nimbus::PDS->new();
+    if($subject eq "QOS_MESSAGE") {
+        $udataPDS->string("qos", $hashRef->{udata}->{qos});
+        $udataPDS->string("source", $hashRef->{udata}->{source});
+        $udataPDS->string("target", $hashRef->{udata}->{target});
+        $udataPDS->number("sampletime", $hashRef->{udata}->{sampletime});
+        $udataPDS->number("sampletype", $hashRef->{udata}->{sampletype});
+        $udataPDS->float("samplevalue", $hashRef->{udata}->{samplevalue});
+        $udataPDS->float("samplestdev", $hashRef->{udata}->{samplestdev});
+        $udataPDS->number("samplerate", $hashRef->{udata}->{samplerate});
+    }
+    elsif($subject eq "QOS_DEFINITION") {
+        $udataPDS->string("name", $hashRef->{udata}->{name});
+        $udataPDS->string("group", $hashRef->{udata}->{group});
+        $udataPDS->string("description", $hashRef->{udata}->{description});
+        $udataPDS->string("unit", $hashRef->{udata}->{unit});
+        $udataPDS->string("unit_short", $hashRef->{udata}->{unit_short});
+        $udataPDS->number("flags", $hashRef->{udata}->{flags});
+        $udataPDS->number("type", $hashRef->{udata}->{type});
+    }
+
+    $PDS->put("udata", $udataPDS, PDS_PDS);
+
+    return ($PDS, undef) if $subject eq "QOS_DEFINITION";
+    return ($PDS, $metricId);
+}
+
+# @subroutine ascii_oid
+# @desc Transform oid indexes into a complete string
+# @param {!String} oid
+# @param {Integer=} mode
+# @returns {String}
+sub ascii_oid($$) {
+    my ($oid, $mode) = @_;
+    my $temptmp='';
+    my @comb;
+    foreach my $c (split(/\./, $oid)) {
+        if ($c > 31 && $c < 127) {
+            $temptmp .= chr($c);
+        }
+        else {
+            push @comb, $temptmp if $temptmp ne '';
+            push @comb, int($c) if $mode==1;
+            $temptmp = '';
+        }
+    }
+
+    # Final push if something is not pushed already
+    push @comb, $temptmp if $temptmp ne '';
+    $temptmp = join(".", @comb);
+
+    # clean generated ASCII text
+    $temptmp =~ s/"/\\"/go;
+    $temptmp =~ s/^[.]?(.*?)[.]?$/$1/o;
+    return $temptmp;
 }
 
 1;

@@ -52,12 +52,13 @@ sub upsertXMLObject {
     if(scalar(@devicesToCreate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $device = shift @devicesToCreate)) {
+            my $devId = src::utils::generateDeviceId();
             $self->{DB}->prepare('INSERT INTO nokia_ipsla_device (uuid, snmp_uuid, name, ip, dev_id) VALUES (?, ?, ?, ?, ?)')->execute(
                 $device->{ElementUUID},
                 $device->{SnmpProfileUUID},
                 $device->{Label},
                 $device->{PrimaryIPV4Address},
-                src::utils::generateDeviceId()
+                $devId
             );
         }
         $self->{DB}->commit;
@@ -196,7 +197,7 @@ sub checkAttributes {
     my %Hash = %{ $hashRef };
     foreach my $key (keys %Hash) {
         my $value = $Hash{$key};
-        my ($rowCount) = $self->{DB}->selectrow_array("SELECT count(*) FROM nokia_ipsla_device_attr WHERE dev_uuid = \"$device->{uuid}\" AND key = \"$key\"");
+        my ($rowCount) = $self->{DB}->selectrow_array("SELECT count(*) FROM nokia_ipsla_device_attr WHERE dev_uuid = \"$device->{dev_uuid}\" AND key = \"$key\"");
         my $payload = {
             key => $key,
             value => $value
@@ -209,7 +210,7 @@ sub checkAttributes {
         $self->{DB}->begin_work;
         while (defined(my $attr = shift @toCreate)) {
             $self->{DB}->prepare('INSERT INTO nokia_ipsla_device_attr (dev_uuid, key, value) VALUES (?, ?, ?)')->execute(
-                $device->{uuid},
+                $device->{dev_uuid},
                 $attr->{key},
                 $attr->{value}
             );
@@ -223,7 +224,7 @@ sub checkAttributes {
             $self->{DB}->prepare('UPDATE nokia_ipsla_device_attr SET value=? WHERE key=? AND dev_uuid=?')->execute(
                 $attr->{value},
                 $attr->{key},
-                $device->{uuid}
+                $device->{dev_uuid}
             );
         }
         $self->{DB}->commit;
@@ -276,24 +277,24 @@ sub import_def {
     $self->{DB}->do("$SQLQuery");
     $self->{DB}->do("CREATE VIEW IF NOT EXISTS v_pollable_devices
     AS 
-    SELECT DEV1.name, DEV1.ip, '1' AS snmp_version, V1.uuid, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
-    JOIN nokia_ipsla_device AS DEV1 ON DEV1.snmp_uuid = V1.uuid WHERE DEV1.is_pollable=1
+    SELECT DEV1.name, DEV1.ip, DEV1.uuid as dev_uuid, '1' AS snmp_version, V1.uuid, DEV1.dev_id, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
+    JOIN nokia_ipsla_device AS DEV1 ON DEV1.snmp_uuid = V1.uuid WHERE DEV1.is_pollable=1 AND DEV1.is_active=1
     UNION
-    SELECT DEV2.name, DEV2.ip, '2' AS snmp_version, V2.uuid, V2.port, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
-    JOIN nokia_ipsla_device AS DEV2 ON DEV2.snmp_uuid = V2.uuid WHERE DEV2.is_pollable=1
+    SELECT DEV2.name, DEV2.ip, DEV2.uuid as dev_uuid, '2' AS snmp_version, V2.uuid, DEV2.dev_id, V2.port, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
+    JOIN nokia_ipsla_device AS DEV2 ON DEV2.snmp_uuid = V2.uuid WHERE DEV2.is_pollable=1 AND DEV2.is_active=1
     UNION
-    SELECT DEV3.name, DEV3.ip, '3' AS snmp_version, V3.uuid, V3.port, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
-    JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=1");
+    SELECT DEV3.name, DEV3.ip, DEV3.uuid as dev_uuid, '3' AS snmp_version, V3.uuid, DEV3.dev_id, V3.port, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
+    JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=1 AND DEV3.is_active=1");
     $self->{DB}->do("CREATE VIEW IF NOT EXISTS v_unpollable_devices
     AS 
-    SELECT DEV1.name, DEV1.ip, '1' AS snmp_version, V1.uuid, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
-    JOIN nokia_ipsla_device AS DEV1 ON DEV1.snmp_uuid = V1.uuid WHERE DEV1.is_pollable=0
+    SELECT DEV1.name, DEV1.ip, DEV1.uuid as dev_uuid, '1' AS snmp_version, V1.uuid, DEV1.dev_id, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
+    JOIN nokia_ipsla_device AS DEV1 ON DEV1.snmp_uuid = V1.uuid WHERE DEV1.is_pollable=0 AND DEV1.is_active=1 
     UNION
-    SELECT DEV2.name, DEV2.ip, '2' AS snmp_version, V2.uuid, V2.port, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
-    JOIN nokia_ipsla_device AS DEV2 ON DEV2.snmp_uuid = V2.uuid WHERE DEV2.is_pollable=0
+    SELECT DEV2.name, DEV2.ip, DEV2.uuid as dev_uuid, '2' AS snmp_version, V2.uuid, DEV2.dev_id, V2.port, V2.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v2 AS V2
+    JOIN nokia_ipsla_device AS DEV2 ON DEV2.snmp_uuid = V2.uuid WHERE DEV2.is_pollable=0 AND DEV2.is_active=1
     UNION
-    SELECT DEV3.name, DEV3.ip, '3' AS snmp_version, V3.uuid, V3.port, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
-    JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=0");
+    SELECT DEV3.name, DEV3.ip, DEV3.uuid as dev_uuid, '3' AS snmp_version, V3.uuid, DEV3.dev_id, V3.port, '' AS community, V3.username, V3.auth_protocol, V3.auth_key, V3.priv_protocol, V3.priv_key FROM nokia_ipsla_snmp_v3 AS V3
+    JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=0 AND DEV3.is_active=1");
     $self->{DB}->{sqlite_allow_multiple_statements} = 0;
     return $self;
 }

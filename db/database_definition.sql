@@ -5,7 +5,15 @@ CREATE TABLE IF NOT EXISTS "nokia_ipsla_device" (
 "name" VARCHAR(100) NOT NULL,
 "ip" VARCHAR(45) NOT NULL,
 "dev_id" CHAR(33) NOT NULL,
+"is_active" BOOLEAN DEFAULT 1,
 "is_pollable" BOOLEAN DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS "nokia_metric_definition" (
+"dev_id" CHAR(33) PRIMARY KEY NOT NULL,
+"met_type" VARCHAR(20),
+"met_name" VARCHAR(30),
+"met_id" CHAR(33) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "nokia_ipsla_device_attr" (

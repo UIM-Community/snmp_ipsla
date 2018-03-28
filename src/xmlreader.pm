@@ -31,7 +31,7 @@ sub new {
 
 # PARSE The XML File!
 sub parse {
-    my ($self) = @_;
+    my ($self, $deviceRef) = @_;
     my $ref = XMLin($self->{path}, ForceArray => 0);
     my $DefaultOrigin = defined($ref->{DefaultOrigin}) ? $ref->{DefaultOrigin} : undef;
     my @localsFilters = @{ $filters };
@@ -47,11 +47,21 @@ sub parse {
             eval {
                 # Only if we match Vendor and Model field requirement!
                 my $dev = src::device->new($_);
+                print STDOUT "Handle XML Device with Label => $dev->{Label}\n";
+                nimLog(3, "Handle XML Device with Label => $dev->{Label}");
                 filterW: foreach my $filterRef (@localsFilters) {
                     filterK: foreach my $filterKey (keys %{ $filterRef }) {
                         next filterK if !defined($dev->{$filterKey});
-                        next filterK unless($dev->{$filterKey} =~ $filterRef->{$filterKey}) ;
-                        push(@devices, $dev);
+                        next filterK unless($dev->{$filterKey} =~ $filterRef->{$filterKey});
+                        if(defined($deviceRef->{$dev->{ElementUUID}})) {
+                            print STDOUT "Device with Label $dev->{Label} is not active anymore\n";
+                            nimLog(3, "Device with Label $dev->{Label} is not active anymore");
+                        }
+                        else {
+                            print STDOUT "Device $dev->{Label} is matching filtering rules...\n";
+                            nimLog(3, "Device $dev->{Label} is matching filtering rules...");
+                            push(@devices, $dev);
+                        }
                         last filterW;
                     }
                 }
