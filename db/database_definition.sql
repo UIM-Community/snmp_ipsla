@@ -9,11 +9,14 @@ CREATE TABLE IF NOT EXISTS "nokia_ipsla_device" (
 "is_pollable" BOOLEAN DEFAULT 1
 );
 
-CREATE TABLE IF NOT EXISTS "nokia_metric_definition" (
-"dev_id" CHAR(33) PRIMARY KEY NOT NULL,
-"met_type" VARCHAR(20),
-"met_name" VARCHAR(30),
-"met_id" CHAR(33) NOT NULL
+CREATE TABLE IF NOT EXISTS "nokia_ipsla_metrics" (
+"id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+"name" VARCHAR(100) NOT NULL,
+"device_name" VARCHAR(100) NOT NULL,
+"probe" VARCHAR(100) NOT NULL,
+"type" VARCHAR(25) NOT NULL,
+"value" INTEGER NOT NULL,
+"time" NUMERIC NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "nokia_ipsla_device_attr" (

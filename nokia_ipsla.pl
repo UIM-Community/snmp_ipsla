@@ -1,6 +1,9 @@
 use lib "/opt/nimsoft/perllib";
 use lib "/opt/nimsoft/perl/lib";
 
+# Set env variable NIM_ROOT
+$ENV{'NIM_ROOT'} = '/opt/nimsoft';
+
 # Use Perl core Package(s)
 use strict;
 use POSIX;
@@ -8,6 +11,7 @@ use threads;
 use Thread::Queue;
 use threads::shared;
 use Data::Dumper;
+use Time::Piece;
 
 # Use Third-party Package(s)
 use Nimbus::API;
@@ -21,27 +25,193 @@ use src::xmlreader;
 use src::dbmanager;
 use src::snmpmanager;
 use src::utils;
-use src::qos qw(SendQoSDefinition);
 
 # Declare Script CONSTANT(S) and Global(s)
 use constant {
-    PROBE_NAME => "nokia_ipsla"
+    PROBE_NAME => "nokia_ipsla",
+    CFG_FILE => "nokia_ipsla.cfg",
+    VERSION => "1.3"
 };
 my $XMLDirectory: shared;
-my ($ProvisioningInterval, $T_CheckInterval, $T_HealthInterval, $HealthThreads, $ProvisioningOnStart, $T_PollingInterval, $PollingInterval);
+my ($ProvisioningInterval, $T_CheckInterval, $T_HealthInterval, $HealthThreads, $ProvisioningOnStart, $T_PollingInterval);
 my ($RemoveDevicesInterval, $T_RemoveDevicesInterval, $DecommissionSQLTable);
+my ($DB_ConnectionString, $DB_User, $DB_Password);
+my $CRED_KEY = "secret_key";
+my $PollingInterval: shared;
 my $HealthInterval: shared;
 my $BOOL_DeleteXML: shared = 1;
 my $readXML_open: shared = 0;
 my $updateDevicesAttr: shared = 0;
 my $alarmThreadRunning: shared = 0;
 my $removeDevicesRunning: shared = 0;
-my $databaseKey = "secret_key";
 my $sess;
+
+# SNMP QoS Parser routines
+my $SnmpQoSValueParser = {
+    us => sub {
+        my ($strValue) = @_;
+        my @matches = $strValue =~ /(.*)\smicroseconds/g;
+        return $matches[0];
+    },
+    State => sub {
+        my ($strValue) = @_;
+        return $strValue eq "success";
+    }
+};
+
+# SNMP QoS Schema
+my $SnmpQoSSchema = {
+    tmnxOamPingResultsMinRtt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsAverageRtt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsMaxTt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsInTtSumOfSqrs => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsInJitter => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    #tmnxOamPingResultsTtOFSumSquares => '0',
+    tmnxOamPingResultsAverageTt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsOutJitter => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsMaxRtt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsMaxInTt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    #tmnxOamPingResultsRttOFSumSquares => '0',
+    tmnxOamPingResultsMinTt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsTestRunResult => {
+        unit => "State",
+        short => "",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 1
+    },
+    tmnxOamPingResultsInTtHCSumSqrs => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    #tmnxOamPingResultsSvcPing => 'undetermined',
+    #tmnxOamPingResultsSentProbes => '1 probes',
+    tmnxOamPingResultsRttSumOfSquares => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    #tmnxOamPingResultsOperStatus => 'disabled',
+    tmnxOamPingResultsTtSumOfSquares => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    #tmnxOamPingResultsInTtOFSumSqrs => '0',
+    #tmnxOamPingResultsProbeResponses => '1 responses',
+    #tmnxOamPingResultsLastGoodProbe => '2018-3-27,14:39:0.0,+0:0',
+    #tmnxOamPingResultsMtuResponseSize => '0 Octets',
+    #tmnxOamPingResultsProbeTimeouts => '0',
+    tmnxOamPingResultsAverageInTt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsRtJitter => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsRttHCSumSquares => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    tmnxOamPingResultsMinInTt => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    },
+    #tmnxOamPingResultsOutOfOrder => '0 reply PDUs',
+    #tmnxOamPingResultsProbeFailures => '0',
+    tmnxOamPingResultsTtHCSumSquares => {
+        unit => "us",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "",
+        flags => 0
+    }
+};
 
 # Queues
 my $AlarmQueue = Thread::Queue->new();
 my $deviceHandlerQueue = Thread::Queue->new();
+my $QoSHandlers = Thread::Queue->new();
 
 # Unexcepted Script die!
 $SIG{__DIE__} = \&scriptDieHandler;
@@ -58,10 +228,8 @@ sub scriptDieHandler {
 # @subroutine getMySQLConnector
 # @desc get MySQLConnector
 sub getMySQLConnector {
-    my $cs = "DBI:mysql:database=ca_uim;host=localhost;port=33006";
-    my $dbh = DBI->connect($cs, "root", "uim", {
-        RaiseError => 1
-    });
+    nimLog(3, "Initialize MySQL connection: (CS: $DB_ConnectionString)");
+    my $dbh = DBI->connect($DB_ConnectionString, $DB_User, $DB_Password);
     if(!defined($dbh)) {
         nimLog(1, "Failed to connect to the MySQL Database...");
     }
@@ -71,7 +239,9 @@ sub getMySQLConnector {
 # @subroutine processProbeConfiguration
 # @desc Read and apply default probe Configuration !
 sub processProbeConfiguration {
-    my $CFG                 = Nimbus::CFG->new("nokia_ipsla.cfg");
+    my $processProbeConfigurationTime = nimTimerCreate();
+    nimTimerStart($processProbeConfigurationTime);
+    my $CFG                 = Nimbus::CFG->new(CFG_FILE);
 
     # Setup section
     my $STR_Login           = $CFG->{"setup"}->{"nim_login"} || "administrator";
@@ -80,6 +250,26 @@ sub processProbeConfiguration {
     my $INT_LogSize         = $CFG->{"setup"}->{"logsize"} || 1024;
     my $STR_LogFile         = $CFG->{"setup"}->{"logfile"} || "nokia_ipsla.log";
     scriptDieHandler("Configuration <provisioning> section is not mandatory!") if not defined($CFG->{"provisioning"});
+
+    # Database Section
+    my $DBName      = $CFG->{"database"}->{"database"} || "ca_uim";
+    my $DBHost      = $CFG->{"database"}->{"host"};
+    my $DBPort      = $CFG->{"database"}->{"port"};
+    $DB_ConnectionString = "DBI:mysql:database=$DBName;host=$DBHost;port=$DBPort";
+    $DB_User        = $CFG->{"database"}->{"user"};
+    $DB_Password    = $CFG->{"database"}->{"password"};
+
+    # Crypt CFG Credential keys!
+    if(substr($DB_Password, length($DB_Password) - 2, 2) ne "==") {
+        my $CFGNapi = cfgOpen(CFG_FILE, 0);
+        my $cValue = nimEncryptString($CRED_KEY, $DB_Password);
+        cfgKeyWrite($CFGNapi, "/database/", "password", $cValue); 
+        cfgSync($CFGNapi);
+        cfgClose($CFGNapi);
+    }
+    else {
+        $DB_Password = nimDecryptString($CRED_KEY, $DB_Password);
+    }
 
     # provisioning Section 
     $XMLDirectory           = $CFG->{"provisioning"}->{"xml_dir"} || "./xml";
@@ -116,10 +306,10 @@ sub processProbeConfiguration {
     nimLog(3, "Probe Nokia_ipsla started!"); 
 
     # Minmum security threshold for PollingInterval
-    if($PollingInterval < 100) {
-        print STDOUT "SNMP Polling interval threshold is 100 seconds!\n";
-        nimLog(2, "SNMP Polling interval threshold is 100 seconds!"); 
-        $PollingInterval = 100;
+    if($PollingInterval < 60 || $PollingInterval > 1800) {
+        print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
+        nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
+        $PollingInterval = 60;
     }
 
     # Minimum security threshold for CheckInterval
@@ -139,16 +329,33 @@ sub processProbeConfiguration {
     nimTimerStart($T_PollingInterval);
     nimTimerStart($T_RemoveDevicesInterval);
 
-    # QoS Definitions
-    SendQoSDefinition({
-        name        => "QOS_REACHABILITY",
-        group       => "QOS_NETWORK",
-        description => "Network connectivity response",
-        unit        => "State",
-        unit_short  => "",
-        flags       => 1,
-        type        => 1
-    });
+    nimQoSSendDefinition(
+        "QOS_REACHABILITY",
+        "QOS_NETWORK",
+        "Network connectivity response",
+        "State",
+        "",
+        NIMQOS_DEF_BOOLEAN
+    );
+    foreach my $QoSName (keys %{ $SnmpQoSSchema }) {
+        my $QoS = $SnmpQoSSchema->{$QoSName};
+        print STDOUT "Send QoSDefinition QOS_$QoSName\n";
+        nimLog(3, "Send QoSDefinition QOS_$QoSName");
+        nimQoSSendDefinition(
+            "QOS_$QoSName",
+            $QoS->{group},
+            $QoS->{group},
+            $QoS->{unit},
+            $QoS->{short},
+            $QoS->{flags}
+        );
+    }
+
+    nimTimerStop($processProbeConfigurationTime);
+    my $executionTimeMs = nimTimerDiff($processProbeConfigurationTime);
+    nimTimerFree($processProbeConfigurationTime);
+    print STDOUT "processProbeConfiguration() has been executed in ${executionTimeMs}ms\n";
+    nimLog(3, "processProbeConfiguration() has been executed in ${executionTimeMs}ms");
 
     if($ProvisioningOnStart == 1) {
         print STDOUT "Provisioning on start activated: Triggering updateInterval() method!\n";
@@ -165,7 +372,7 @@ sub alarmsThread {
     nimLog(3, "Run a new thread for alarming!");
 
     # Open and Read CFG File
-    my $CFG     = Nimbus::CFG->new("nokia_ipsla.cfg");
+    my $CFG     = Nimbus::CFG->new(CFG_FILE);
     my $Alarm   = defined($CFG->{"messages"}) ? $CFG->{"messages"} : {};
 
     # Request local (agent/robot) informations
@@ -193,34 +400,34 @@ sub alarmsThread {
         my $message = src::utils::parseAlarmVariable($type->{message}, $hVariablesRef);
         undef $hVariablesRef;
 
-        # if(defined($hAlarm->{hCI})) {
-        #     my $hCI = ciOpenLocalDevice($hAlarm->{hCI}, $hAlarm->{name});
-        #     my ($RC, $nimid) = ciSessionAlarm(
-        #         $sess->{SERVER_SESS},
-        #         $hCI,
-        #         $hAlarm->{metric},
-        #         $type->{severity},
-        #         $message,
-        #         "",
-        #         Nimbus::PDS->new()->data,
-        #         $type->{subsys},
-        #         $suppkey,
-        #         $hAlarm->{source}
-        #     );
-        #     print STDOUT "Generate new (CI) alarm with id $nimid\n";
-        #     nimLog(3, "Generate new (CI) alarm with id $nimid");
-        #     if($RC != NIME_OK) {
-        #         my $errorTxt = nimError2Txt($RC);
-        #         print STDERR "Failed to generate alarm, RC => $RC, $errorTxt\n";
-        #         nimLog(2, "Failed to generate alarm, RC => $RC, $errorTxt");
-        #     }
-        # }
-        # else {
+        if(defined($hAlarm->{hCI})) {
+            my $hCI = $hAlarm->{hCI};
+            my ($RC, $nimid) = ciAlarm(
+                $hCI,
+                $hAlarm->{metric},
+                $type->{severity},
+                $message,
+                "",
+                Nimbus::PDS->new()->data,
+                $type->{subsys},
+                $suppkey,
+                $hAlarm->{source}
+            );
+            print STDOUT "Generate new (CI) alarm with id $nimid\n";
+            nimLog(3, "Generate new (CI) alarm with id $nimid");
+            if($RC != NIME_OK) {
+                my $errorTxt = nimError2Txt($RC);
+                print STDERR "Failed to generate alarm, RC => $RC :: $errorTxt\n";
+                nimLog(2, "Failed to generate alarm, RC => $RC :: $errorTxt");
+            }
+            ciClose($hCI);
+        }
+        else {
             # Generate Alarm PDS
             my ($PDSAlarm, $nimid) = src::utils::generateAlarm("alarm", {
                 robot       => $hAlarm->{device},
                 source      => $hAlarm->{source},
-                met_id      => "",
+                met_id      => $hAlarm->{met_id} || "",
                 dev_id      => $hAlarm->{dev_id},
                 hubName     => $localAgent->{hubname},
                 domain      => $localAgent->{domain},
@@ -241,10 +448,10 @@ sub alarmsThread {
             my ($RC) = nimRequest($localAgent->{robotname}, 48001, "post_raw", $PDSAlarm->data);
             if($RC != NIME_OK) {
                 my $errorTxt = nimError2Txt($RC);
-                print STDERR "Failed to generate alarm, RC => $RC, $errorTxt\n";
-                nimLog(2, "Failed to generate alarm, RC => $RC, $errorTxt");
+                print STDERR "Failed to generate alarm, RC => $RC :: $errorTxt\n";
+                nimLog(2, "Failed to generate alarm, RC => $RC :: $errorTxt");
             }
-        # }
+        }
     }
     $alarmThreadRunning = 0;
 }
@@ -276,20 +483,22 @@ sub startAlarmThread {
 # @desc Process XML Files to get Devices and SNMP Profiles
 sub processXMLFiles {
     $readXML_open = 1;
-    my $start = time();
-    my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $databaseKey)->import_def('./db/database_definition.sql');
+    print STDOUT "Entering processXMLFiles() !\n";
+    nimLog(3, "Entering processXMLFiles() !");
+    my $processXMLFilesTimer = nimTimerCreate();
+    nimTimerStart($processXMLFilesTimer);
+    my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
 
-    # Connect to MySQL!
-    my $dbh = getMySQLConnector();
-    return if not defined($dbh);
-
-    my $sth = $dbh->prepare("SELECT device_uuid FROM $DecommissionSQLTable");
-    $sth->execute();
+    # Connect to MySQL (optionaly)
     my $devicesUUID = {};
-    while(my $row = $sth->fetchrow_hashref) {
-        $devicesUUID->{$row->{device_uuid}} = 0;
+    my $dbh = getMySQLConnector();
+    if(defined($dbh)) {
+        my $sth = $dbh->prepare("SELECT device_uuid FROM $DecommissionSQLTable");
+        $sth->execute();
+        while(my $row = $sth->fetchrow_hashref) {
+            $devicesUUID->{$row->{device_uuid}} = 0;
+        }
     }
-    undef $sth;
     undef $dbh;
 
     print STDOUT "Start XML File(s) processing !\n";
@@ -314,9 +523,12 @@ sub processXMLFiles {
         nimLog(2, $@) if $@;
         print STDERR $@ if $@;
     }
-    my $execution_time = sprintf("%.2f", time() - $start);
-    print STDOUT "Successfully processed $processed_files XML file(s) in ${execution_time} seconds !\n";
-    nimLog(3, "Successfully processed $processed_files XML file(s) in ${execution_time} seconds !");
+
+    nimTimerStop($processXMLFilesTimer);
+    my $execution_time = nimTimerDiff($processXMLFilesTimer);
+    nimTimerFree($processXMLFilesTimer);
+    print STDOUT "Successfully processed $processed_files XML file(s) in ${execution_time}ms !\n";
+    nimLog(3, "Successfully processed $processed_files XML file(s) in ${execution_time}ms !");
     $SQLDB->close();
     
     eval {
@@ -324,7 +536,7 @@ sub processXMLFiles {
     };
     if($@) {
         print STDERR $@;
-        nimLog(1,$@);
+        nimLog(1, $@);
         $updateDevicesAttr = 0;
     }
     $readXML_open = 0;
@@ -337,12 +549,13 @@ sub hydrateDevicesAttributes {
         return;
     }
     $updateDevicesAttr = 1;
-    my $start = time();
+    my $hydrateDevicesAttributesTimer = nimTimerCreate();
+    nimTimerStart($hydrateDevicesAttributesTimer);
     print STDOUT "Starting hydratation of Devices attributes\n";
     nimLog(3, "Starting hydratation of Devices attributes");
 
     # Get all pollable devices from SQLite!
-    my $SQLDB           = src::dbmanager->new('./db/nokia_ipsla.db', $databaseKey);
+    my $SQLDB           = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
     my $threadQueue     = Thread::Queue->new();
     my $pollableResponseQueue   = Thread::Queue->new();
     $threadQueue->enqueue($_) for @{ $SQLDB->pollable_devices() };
@@ -350,31 +563,46 @@ sub hydrateDevicesAttributes {
     $SQLDB->close();
 
     # If threadQueue is empty exit method!
-    if($threadQueue->pending() == 0) {
+    my $QPending = $threadQueue->pending();
+    if($QPending == 0) {
         print STDOUT "No devices to be polled (health_check), Exiting hydrateDevicesAttributes() method!\n";
         nimLog(2, "No devices to be polled (health_check), Exiting hydrateDevicesAttributes() method!");
+        $updateDevicesAttr = 0;
         return;
+    }
+
+    # Re-allocate right number of threads!
+    my $t_healthThreadsCount = $HealthThreads;
+    if($QPending < $t_healthThreadsCount) {
+        $t_healthThreadsCount = $threadQueue->pending();
+        print STDOUT "Adjusting (in running context) health_threads count to $t_healthThreadsCount\n";
+        nimLog(2, "Adjusting (in running context) health_threads count to $t_healthThreadsCount");
     }
 
     my $pollingThread = sub {
         print STDOUT "Health Polling thread started\n";
         nimLog(3, "Health Polling thread started");
 
-        my $SQLDB       = src::dbmanager->new('./db/nokia_ipsla.db', $databaseKey);
+        my $SQLDB       = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
         my $snmpManager = src::snmpmanager->new();
         while ( defined ( my $Device = $threadQueue->dequeue() ) ) {
-            my $result      = $snmpManager->snmpSysInformations($Device);
-            my $isPollable  = ref($result) eq "HASH" ? 1 : 0;
+            my $result          = $snmpManager->snmpSysInformations($Device);
+            my $isPollable      = ref($result) eq "HASH" ? 1 : 0;
+            my $isPollableStr   = $isPollable ? "true" : "false";
+            print STDOUT "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr\n";
+            nimLog(2, "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr");
+
             $pollableResponseQueue->enqueue({
-                device      => $Device->{uuid},
+                uuid        => $Device->{dev_uuid},
                 pollable    => $isPollable
             });
 
             # Generate Reachability QoS
-            my $hCI = ciOpenLocalDevice("2.1", $Device->{name});
+            my $hCI = ciOpenRemoteDevice("2.1", $Device->{name}, $Device->{ip});
             my $QOS = nimQoSCreate("QOS_REACHABILITY", $Device->{name}, $HealthInterval, -1);
-            ciBindQoS($hCI, $QOS, "2.1:1") if defined($hCI);
+            ciBindQoS($hCI, $QOS, "2.1:1");
             nimQoSSendValue($QOS, "reachability", $isPollable);
+            ciUnBindQoS($QOS);
             nimQoSFree($QOS);
 
             # Update SQLite attributes and trigger an Alarm (clear or not).
@@ -384,7 +612,7 @@ sub hydrateDevicesAttributes {
                 device  => $Device->{name},
                 source  => $Device->{ip},
                 dev_id  => $Device->{dev_id},
-                hCI     => "2.1",
+                hCI     => $hCI,
                 metric  => "2.1:1"
             });
         }
@@ -396,15 +624,15 @@ sub hydrateDevicesAttributes {
     # Wait for polling threads
     my @thr = map {
         threads->create(\&$pollingThread);
-    } 1..$HealthThreads;
-    for(my $i = 0; $i < $HealthThreads; $i++) {
+    } 1..$t_healthThreadsCount;
+    for(my $i = 0; $i < $t_healthThreadsCount; $i++) {
         $threadQueue->enqueue(undef);
     }
     $_->join() for @thr;
     $pollableResponseQueue->enqueue(undef);
 
     # Update pollable values!
-    my $SQLDB       = src::dbmanager->new('./db/nokia_ipsla.db', $databaseKey);
+    my $SQLDB       = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
     $SQLDB->{DB}->begin_work;
     while ( defined ( my $Device = $pollableResponseQueue->dequeue() ) ) {
         $SQLDB->updatePollable($Device->{uuid}, $Device->{pollable});
@@ -412,9 +640,11 @@ sub hydrateDevicesAttributes {
     $SQLDB->{DB}->commit;
     $SQLDB->close();
 
-    my $execution_time = sprintf("%.2f", time() - $start);
-    print STDOUT "Successfully hydrate devices attributes in ${execution_time} seconds !\n";
-    nimLog(3, "Successfully hydrate devices attributes in ${execution_time} seconds !");
+    nimTimerStop($hydrateDevicesAttributesTimer);
+    my $execution_time = nimTimerDiff($hydrateDevicesAttributesTimer);
+    nimTimerFree($hydrateDevicesAttributesTimer);
+    print STDOUT "Successfully hydrate devices attributes in ${execution_time}ms !\n";
+    nimLog(3, "Successfully hydrate devices attributes in ${execution_time}ms !");
     $updateDevicesAttr = 0;
 }
 
@@ -427,7 +657,11 @@ sub removeDevices {
 
     # Connect to MySQL!
     my $dbh = getMySQLConnector();
-    return if not defined($dbh);
+    if(!defined($dbh)) {
+        nimLog(1, "Exiting removeDevices()... MySQL database KO");
+        $removeDevicesRunning = 0;
+        return;
+    }
 
     my $sth = $dbh->prepare("SELECT device_uuid FROM $DecommissionSQLTable");
     $sth->execute();
@@ -445,7 +679,7 @@ sub removeDevices {
     }
     
     my @deviceToRemove = ();
-    my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $databaseKey)->import_def('./db/database_definition.sql');
+    my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
     my $sth = $SQLDB->{DB}->prepare("SELECT uuid, snmp_uuid FROM nokia_ipsla_device WHERE is_active=1");
     $sth->execute();
     while(my $row = $sth->fetchrow_hashref) {
@@ -460,9 +694,10 @@ sub removeDevices {
     # Remove Device from SQLite table!
     $SQLDB->{DB}->begin_work;
     foreach(@deviceToRemove) {
-        nimLog(3, "Remove Device with UUID => $_->{uuid}");
+        nimLog(3, "Remove (Decommission) of the Device with UUID => $_->{uuid}");
         $SQLDB->{DB}->prepare('UPDATE nokia_ipsla_device SET is_active=? WHERE uuid=?')->execute(0, $_->{uuid});
         $SQLDB->{DB}->prepare('DELETE FROM nokia_ipsla_device_attr WHERE dev_uuid=?')->execute($_->{uuid});
+        # TODO: DECOM SNMP ? Metrics?
     }
     $SQLDB->{DB}->commit;
     $SQLDB->close();
@@ -475,9 +710,8 @@ sub updateInterval {
     if($readXML_open == 1) {
         return;
     }
-
-    print STDOUT "Triggering automatic XML checking...\n";
-    nimLog(3, "Triggering automatic XML checking...");
+    print STDOUT "Triggering provisioning interval...\n";
+    nimLog(3, "Triggering provisioning interval...");
 
     # Create separated thread to handle provisioning mechanism
     threads->create(sub {
@@ -572,6 +806,30 @@ sub snmpPollingInterval {
     nimTimerStart($T_PollingInterval);
 }
 
+# @subroutine startAlarmMetricHandlerThread
+# @desc Thread to handle all Metric QoS history
+sub startAlarmMetricHandlerThread {
+    print STDOUT "Triggering QoS history metric thread\n";
+    nimLog(3, "Triggering QoS history metric thread");
+
+    # Create separated thread to handle provisioning mechanism
+    threads->create(sub {
+        eval {
+            threads->create(\&QoSHistory)->join;
+        };
+        if($@) {
+            print STDERR $@."\n";
+            nimLog(0, $@);
+        }
+    })->detach;
+}
+
+# @subroutine QoSHistory
+# @desc Handle QoSHistory
+sub QoSHistory {
+    # TODO: Request SQLite view
+}
+
 # @callback get_info
 # @desc Get information about how run the probe
 sub get_info {
@@ -615,7 +873,7 @@ sub remove_device {
     # Connect to the SQLite
     my $SQLDB = src::dbmanager->new(
         './db/nokia_ipsla.db',
-        $databaseKey
+        $CRED_KEY
     )->import_def('./db/database_definition.sql');
     my $sth = $SQLDB->{DB}->prepare('SELECT uuid FROM nokia_ipsla_device WHERE name=?');
     $sth->execute($deviceName);
@@ -678,14 +936,8 @@ sub timeout {
 # @callback restart
 # @desc Run when the probe is restarted!
 sub restart {
-    print STDOUT "Probe restart callback triggered!\n";
-    nimLog(3,"Probe restart callback triggered!");
-
-    # Restart alarm-thread
-    startAlarmThread();
-
-    # Re-read the probe configuration file
-    processProbeConfiguration();
+    print STDOUT "Probe restart callback triggered... No effects (please deactivate/re-activate)\n";
+    nimLog(3,"Probe restart callback triggered... No effects (please deactivate/re-activate)");
 }
 
 # @subroutine polling
@@ -694,9 +946,38 @@ sub polling {
     print STDOUT "SNMP Polling triggered!\n";
     nimLog(3, "SNMP Polling triggered!");
 
+    # Manage QoS
+    if($QoSHandlers->pending() > 0) {
+        print "Insert all recolted QoS in the SQLite DB!\n";
+        nimLog(2, "Insert all recolted QoS in the SQLite DB!");
+        my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        $SQLDB->{DB}->begin_work;
+        while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
+            eval {
+                $SQLDB->{DB}->prepare(
+                    "INSERT INTO nokia_ipsla_metrics (name, device_name, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?)"
+                )->execute(
+                    $QoSRow->{name},
+                    $QoSRow->{device},
+                    $QoSRow->{probe},
+                    $QoSRow->{type},
+                    $QoSRow->{value},
+                    $QoSRow->{time}
+                );
+            };
+            nimLog(1, $@) if $@;
+        }
+        eval {
+            $SQLDB->{DB}->commit;
+        };
+        nimLog(0, $@) if $@;
+        $SQLDB->close();
+        startAlarmMetricHandlerThread();
+    }
+
     my $timeline = threads->create(sub {
         # Get devices
-        my $SQLDB   = src::dbmanager->new('./db/nokia_ipsla.db', $databaseKey);
+        my $SQLDB   = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
         my @devices = @{ $SQLDB->pollable_devices() };
         $SQLDB->close();
 
@@ -714,9 +995,12 @@ sub polling {
         while($totalEquipments > 0) {
             $deviceHandlerQueue->enqueue(pop(@devices));
             $totalEquipments--;
-            select(undef, undef, undef, $poolPollingInterval);
+            if($totalEquipments != 0) {
+                select(undef, undef, undef, $poolPollingInterval);
+            }
         }
         $deviceHandlerQueue->enqueue(undef);
+
         my $polling_time = sprintf("%.2f", time() - $start);
         nimLog(3, "SNMP Polling execution time: $polling_time s");
         print STDOUT "SNMP Polling execution time: $polling_time s\n";
@@ -726,8 +1010,44 @@ sub polling {
     threads->create(sub {
         print STDOUT "SNMP Pool-polling thread started!\n";
         nimLog(3, "SNMP Pool-polling thread started!");
+        my $startTime;
+        {
+            my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
+            $year+= 1900;
+            $startTime = sprintf("${year}:%02d:%02d %02d:%02d:%02d", ($mon+1), $mday, $hour, ($min - ($PollingInterval/60)), $sec);
+        }
+
+        # read (templates) configuration
+        my $CFG = Nimbus::CFG->new(CFG_FILE);
+        my $templates       = {};
+        foreach my $tableName (keys %{ $CFG->{templates} }) {
+            my @ProbesFilters = ();
+            foreach my $filterId (keys %{ $CFG->{templates}->{$tableName} }) {
+                my $hTest   = {};
+                my @fields  = ();
+                foreach my $fieldKey (keys %{ $CFG->{templates}->{$tableName}->{$filterId} }) {
+                    if($fieldKey eq "saa_name") {
+                        my $saaName = $CFG->{templates}->{$tableName}->{$filterId}->{$fieldKey};
+                        $hTest->{"nameExpr"} = qr/$saaName/;
+                    }
+                    else {
+                        push(@fields, $fieldKey) if $CFG->{templates}->{$tableName}->{$filterId}->{$fieldKey}->{active} eq "yes";
+                    }
+                }
+                $hTest->{fields} = \@fields;
+                push(@ProbesFilters, $hTest);
+            }
+            $templates->{$tableName} = \@ProbesFilters;
+        }
+
+        # Create context variable!
+        my $context = {
+            startTime => $startTime,
+            templates => $templates
+        };
+
         while ( defined(my $device = $deviceHandlerQueue->dequeue()) ) {
-            threads->create(\&snmpWorker, $device)->detach();
+            threads->create(\&snmpWorker, $context, $device)->detach();
         }
         print STDOUT "SNMP Pool-polling finished!\n";
         nimLog(3, "SNMP Pool-polling finished!");
@@ -740,45 +1060,126 @@ sub polling {
 # @subroutine snmpWorker
 # @desc SNMP (Polling) Worker
 sub snmpWorker {
-    my ($device) = @_;
+    my ($context, $device) = @_;
+    my $pollTime = localtime(time);
+    print STDOUT "Handle device $device->{name}\n";
+    nimLog(3, "Handle device $device->{name}");
 
     # Get SNMP Session
     my $snmpSession = src::snmpmanager->new()->initSnmpSession($device);
-    my $deviceTests = {};
-    { # tmnxOamPingCtlTable
-        my $oid     = &SNMP::translateObj('tmnxOamPingCtlTable');
-        my $hash    = $snmpSession->gettable($oid, nogetbulk => 1);
-        foreach(keys %{ $hash }) {
-            $deviceTests->{src::utils::ascii_oid($_, 0)} = {
-                state => $hash->{$_}->{"tmnxOamPingCtlLastRunResult"}
+    if(!defined($snmpSession)) {
+        nimLog(1, "Exiting snmpWorker() thread for device $device->{name}");
+        threads->exit();
+    }
+
+    # Foreach all templates tests!
+    foreach my $snmpTable (keys %{ $context->{templates} }) {
+        my $result;
+        my $getTableExecutionTime = nimTimerCreate();
+        nimTimerStart($getTableExecutionTime);
+        eval {
+            my $oid     = &SNMP::translateObj($snmpTable);
+            $result     = $snmpSession->gettable($oid, nogetbulk => 1);
+        };
+        if($@ || !defined($result)) {
+            nimLog(1, "Failed to execute gettable on device $device->{name} for table $snmpTable");
+            $AlarmQueue->enqueue({
+                type    => "gettable_fail",
+                device  => $device->{name},
+                source  => $device->{ip},
+                dev_id  => $device->{dev_id},
+                payload => {
+                    table => $snmpTable
+                }
+            });
+            threads->exit();
+        }
+        else {
+            nimTimerStop($getTableExecutionTime);
+            my $executionTimeMs = nimTimerDiff($getTableExecutionTime);
+            nimTimerFree($getTableExecutionTime);
+
+            print STDOUT "Successfully gettable $snmpTable on device $device->{name} in ${executionTimeMs}ms\n";
+            nimLog(3, "Successfully gettable $snmpTable on device $device->{name} in ${executionTimeMs}ms");
+        }
+
+        # TODO: Aggregate rows for History type
+        if($snmpTable eq "tmnxOamPingHistoryTable") {
+        }
+
+        my $hCI = ciOpenRemoteDevice("2.1", $device->{name}, $device->{ip});
+        foreach my $testOid (keys %{ $result }) {
+            my $testNameStr = src::utils::ascii_oid($testOid, 0);
+            OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
+                next unless $testNameStr =~ $filter->{nameExpr};
+                my $currTest = $result->{$testOid};
+                nimLog(4, "Matching test name => $testNameStr");
+                print STDOUT "Matching test name => $testNameStr\n";
+                
+                # Get timefield
+                my $timeField;
+                if($snmpTable eq "tmnxOamPingHistoryTable") {
+                    $timeField = $currTest->{"tmnxOamPingHistoryTime"};
+                }
+                elsif($snmpTable eq "tmnxOamPingResultsTable") {
+                    $timeField = $currTest->{"tmnxOamPingResultsLastGoodProbe"};
+                }
+
+                # Handle timer
+                {   
+                    my @group       = split(",",$timeField);
+                    my @f1          = split('-', $group[0]);
+                    my @f2          = split(':', $group[1]);
+                    my $timeDate    = sprintf(
+                        "%02d:%02d:%02d %02d:%02d:%02d",
+                        $f1[0], $f1[1], $f1[2], $f2[0], $f2[1], $f2[2]
+                    );
+                    my $format = "%Y:%m:%d %H:%M:%S";
+                    eval {
+                        my $diff = Time::Piece->strptime($context->{startTime}, $format) - Time::Piece->strptime($timeDate, $format);
+                        if($diff > 0) {
+                            nimLog(3, "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}");
+                            last OID;
+                        }
+                    };
+                    print STDERR $@ if $@;
+                }
+
+                foreach my $fieldName (@{ $filter->{fields} }) {
+                    next unless defined($currTest->{$fieldName});
+                    if(!defined($SnmpQoSSchema->{$fieldName})) {
+                        nimLog(2, "Unknow QoS type for field $fieldName, table: $snmpTable, device: $device->{name}");
+                        next;
+                    }
+                    my $QoSType     = $SnmpQoSSchema->{$fieldName};
+                    my $fieldValue  = $SnmpQoSValueParser->{$QoSType->{unit}}($currTest->{$fieldName});
+                    
+                    # Create QoS
+                    my $QoSTimestamp = time();
+                    my $QOS = nimQoSCreate("QOS_$fieldName", $device->{name}, $PollingInterval, -1);
+                    ciBindQoS($hCI, $QOS, $fieldName);
+                    nimQoSSendValue($QOS, $testNameStr, $fieldValue);
+                    ciUnBindQoS($QOS);
+                    nimQoSFree($QOS);
+
+                    # Enqueue QoS
+                    # $QoSHandlers->enqueue({
+                    #     name    => "QOS_$fieldName",
+                    #     type    => $QoSType->{unit},
+                    #     value   => $fieldValue,
+                    #     probe   => $testNameStr,
+                    #     device  => $device->{name},
+                    #     time    => $QoSTimestamp
+                    # });
+                }
+                last OID;
             }
         }
+        ciClose($hCI);
     }
 
-    # Generate Alarm!
-    $AlarmQueue->enqueue({
-        type    => $deviceTests->{$_}->{state} eq "success" ? "probe_lastrunresult_success" : "probe_lastrunresult_fail",
-        device  => $device->{name},
-        source  => $device->{ip},
-        dev_id  => $device->{dev_id},
-        payload => {
-            state       => $deviceTests->{$_}->{state},
-            testname    => $_
-        }
-    }) for keys(%{ $deviceTests });
-
-    { # Get history timestamp
-        my $oid     = &SNMP::translateObj('tmnxOamPingHistoryTable');
-        my $hash    = $snmpSession->gettable($oid, nogetbulk => 1);
-        foreach(keys %{ $hash }) {
-            $deviceTests->{src::utils::ascii_oid($_, 0)}->{historytime} = $hash->{$_}->{"tmnxOamPingHistoryTime"};
-        }
-    }
-    print Dumper($deviceTests);
-
-    # TODO: Get tests history (timestamp ?)
-    # TODO: Get tests results
-    # TODO: Launch QoS (with CI)
+    print STDOUT "Finished device $device->{name}\n";
+    nimLog(3, "Finished device $device->{name}");
 }
 
 # Start alarm thread
@@ -789,16 +1190,18 @@ processProbeConfiguration();
 
 # Create the Nimsoft probe!
 $sess = Nimbus::Session->new(PROBE_NAME);
-$sess->setInfo('1.0', "THALES Nokia_ipsla collector probe");
+$sess->setInfo(VERSION, "Nokia_ipsla collector probe");
 
 # Register Nimsoft probe to his agent
-if ( $sess->server (NIMPORT_ANY, \&timeout, \&restart) == 0 ) {
+if ( $sess->server (NIMPORT_ANY, \&timeout, \&restart) == NIME_OK ) {
     # Register callbacks (by giving global function name).
+    nimLog(3, "Adding probe callbacks...");
     $sess->addCallback("get_info");
     $sess->addCallback("force_provisioning");
     $sess->addCallback("remove_device", "deviceName");
     $sess->addCallback("force_decommission");
 
     # Set timeout to 1000ms (so one second).
+    nimLog(3, "Dispatch timeout callback at 1,000ms");
     $sess->dispatch(1000);
 }

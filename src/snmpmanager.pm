@@ -62,9 +62,10 @@ sub snmpSysInformations {
 
 sub initSnmpSession {
     my ($self, $hashRef) = @_;
-    print STDOUT "Create new SNMP Session for hostname $hashRef->{name}, ip $hashRef->{ip}\n";
-    nimLog(3, "Create new SNMP Session for hostname $hashRef->{name}, ip $hashRef->{ip}");
-
+    print STDOUT "Create new SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}\n";
+    nimLog(3, "Create new SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}");
+    my $executionTime = nimTimerCreate();
+    nimTimerStart($executionTime);
     my $sess = new SNMP::Session(
         DestHost    => $hashRef->{ip},
         Version     => $hashRef->{snmp_version},
@@ -74,13 +75,20 @@ sub initSnmpSession {
         PrivProto   => $hashRef->{priv_protocol},
         PrivPass    => $hashRef->{priv_key},
         Timeout     => 1000000,
-        Retries     => 2,
+        Retries     => 3,
         SecLevel    => "authPriv"
     );
+    nimTimerStop($executionTime);
+    my $executionTimeMs = nimTimerDiff($executionTime);
+    nimTimerFree($executionTime);
     if(!defined($sess)) {
-        print STDOUT "Failed to initialize SNMP session with hostname $hashRef->{name}, ip $hashRef->{ip}\n";
-        nimLog(2, "Failed to initialize SNMP session with hostname $hashRef->{name}, ip $hashRef->{ip}");
+        print STDOUT "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}. Execution time: $executionTimeMs ms\n";
+        nimLog(2, "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}. Execution time: $executionTimeMs ms");
         return undef;
+    }
+    else {
+        print STDOUT "SNMP Session initialized successfully in ${executionTimeMs}ms for $hashRef->{name}\n";
+        nimLog(3, "SNMP Session initialized successfully in ${executionTimeMs}ms for $hashRef->{name}");
     }
     return $sess;
 }
