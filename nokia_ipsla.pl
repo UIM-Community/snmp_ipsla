@@ -1010,12 +1010,9 @@ sub polling {
     threads->create(sub {
         print STDOUT "SNMP Pool-polling thread started!\n";
         nimLog(3, "SNMP Pool-polling thread started!");
-        my $startTime;
-        {
-            my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
-            $year+= 1900;
-            $startTime = sprintf("${year}:%02d:%02d %02d:%02d:%02d", ($mon+1), $mday, $hour, ($min - ($PollingInterval/60)), $sec);
-        }
+        my $startTime = localtime(time);
+        $startTime -= $PollingInterval;
+        print STDOUT "Start time => $startTime\n";
 
         # read (templates) configuration
         my $CFG = Nimbus::CFG->new(CFG_FILE);
