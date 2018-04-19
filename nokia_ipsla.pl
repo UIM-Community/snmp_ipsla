@@ -302,7 +302,7 @@ sub processProbeConfiguration {
 
     # Configure Nimsoft Log!
     nimLogSet($STR_LogFile, '', $INT_LogLevel, NIM_LOGF_NOTRUNC);
-    nimLogTruncateSize(512 * $INT_LogSize);
+    nimLogTruncateSize($INT_LogSize * 1024);
     nimLog(3, "Probe Nokia_ipsla started!"); 
 
     # Minmum security threshold for PollingInterval
