@@ -493,10 +493,10 @@ sub processXMLFiles {
     my $devicesUUID = {};
     my $dbh = getMySQLConnector();
     if(defined($dbh)) {
-        my $sth = $dbh->prepare("SELECT device_uuid FROM $DecommissionSQLTable");
+        my $sth = $dbh->prepare("SELECT device FROM $DecommissionSQLTable");
         $sth->execute();
         while(my $row = $sth->fetchrow_hashref) {
-            $devicesUUID->{$row->{device_uuid}} = 0;
+            $devicesUUID->{$row->{device}} = 0;
         }
     }
     undef $dbh;
@@ -895,8 +895,8 @@ sub remove_device {
         return nimSendReply($hMsg, NIME_ERROR, $PDS->data);
     }
 
-    my $insertSth = $dbh->prepare("INSERT INTO $DecommissionSQLTable (device_uuid) VALUES (?)");
-    $insertSth->execute($uuid);
+    my $insertSth = $dbh->prepare("INSERT INTO $DecommissionSQLTable (device) VALUES (?)");
+    $insertSth->execute($deviceName);
     nimSendReply($hMsg, NIME_OK);
 }
 

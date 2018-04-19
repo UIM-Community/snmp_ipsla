@@ -53,7 +53,7 @@ sub parse {
                     filterK: foreach my $filterKey (keys %{ $filterRef }) {
                         next filterK if !defined($dev->{$filterKey});
                         next filterK unless($dev->{$filterKey} =~ $filterRef->{$filterKey});
-                        if(defined($deviceRef->{$dev->{ElementUUID}})) {
+                        if(defined($deviceRef->{$dev->{Label}})) {
                             print STDOUT "Device with Label $dev->{Label} is not active anymore\n";
                             nimLog(3, "Device with Label $dev->{Label} is not active anymore");
                         }
