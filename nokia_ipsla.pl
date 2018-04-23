@@ -231,7 +231,12 @@ sub getMySQLConnector {
     nimLog(3, "Initialize MySQL connection: (CS: $DB_ConnectionString)");
     my $dbh = DBI->connect($DB_ConnectionString, $DB_User, $DB_Password);
     if(!defined($dbh)) {
+        print STDERR "Failed to connect to the MySQL Database...\n";
         nimLog(1, "Failed to connect to the MySQL Database...");
+    }
+    else {
+        nimLog(3, "Successfully connected to MySQL database!");
+        print STDOUT "Successfully connected to MySQL database!\n";
     }
     return $dbh;
 }
@@ -1010,9 +1015,19 @@ sub polling {
     threads->create(sub {
         print STDOUT "SNMP Pool-polling thread started!\n";
         nimLog(3, "SNMP Pool-polling thread started!");
-        my $startTime = localtime(time);
-        $startTime -= $PollingInterval;
-        print STDOUT "Start time => $startTime\n";
+        my $startTime;
+        {
+            my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
+            $year+= 1900;
+            $startTime = sprintf(
+                "${year}:%02d:%02d %02d:%02d:%02d",
+                ($mon+1),
+                $mday,
+                $hour - floor( ( $PollingInterval + ( $min * 60 ) ) / 3600 ),
+                ( ( $PollingInterval * 60 ) + $min ) % 60,
+                $sec
+            );
+        }
 
         # read (templates) configuration
         my $CFG = Nimbus::CFG->new(CFG_FILE);
