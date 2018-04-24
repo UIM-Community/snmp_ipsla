@@ -1179,6 +1179,7 @@ sub snmpWorker {
         # Agregate rows for History type
         if($snmpTable eq "tmnxOamPingHistoryTable") {
             my $testByName = {};
+            my $testOids = {};
             my $agregateResult = {};
 
             foreach my $testOid (keys %{ $result }) {
@@ -1187,6 +1188,8 @@ sub snmpWorker {
                 my $seq = pop @splitOid;
                 my $testId = pop @splitOid;
                 my $testNameStr = src::utils::ascii_oid($testOid, 0);
+                $testOids->{$completeTestName} = $testOid; 
+
                 if (not defined($testByName->{$testNameStr})) {
                     $testByName->{$testNameStr} = [];
                     $agregateResult->{$testNameStr} = {};
@@ -1241,7 +1244,7 @@ sub snmpWorker {
                     my $completeName = $agregateResult->{$testName}->{$id}[0]->{completeName};
                     my $time = $agregateResult->{$testName}->{$id}[0]->{tmnxOamPingHistoryTime};
 
-                    $finalResult->{$completeName} = {
+                    $finalResult->{$testOids->{$completeName}} = {
                         tmnxOamPingHistoryTime => $time,
                         tmnxOamPingHistoryResponseMin => min(@response),
                         tmnxOamPingHistoryResponseAvg => mean(@response),
