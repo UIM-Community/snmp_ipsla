@@ -12,6 +12,7 @@ use Thread::Queue;
 use threads::shared;
 use Data::Dumper;
 use Time::Piece;
+use List::Util qw( min max sum );
 
 # Use Third-party Package(s)
 use Nimbus::API;
@@ -46,14 +47,19 @@ my $alarmThreadRunning: shared = 0;
 my $removeDevicesRunning: shared = 0;
 my $sess;
 
+# Set array average!
+sub mean { 
+    return @_ ? sum(@_) / @_ : 0 
+}
+
 # SNMP QoS Parser routines
 my $SnmpQoSValueParser = {
-    us => sub {
+    "µs" => sub {
         my ($strValue) = @_;
         my @matches = $strValue =~ /(.*)\smicroseconds/g;
         return $matches[0];
     },
-    State => sub {
+    "State" => sub {
         my ($strValue) = @_;
         return $strValue eq "success";
     }
@@ -61,150 +67,205 @@ my $SnmpQoSValueParser = {
 
 # SNMP QoS Schema
 my $SnmpQoSSchema = {
-    tmnxOamPingResultsMinRtt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsAverageRtt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsMaxTt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsInTtSumOfSqrs => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsInJitter => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    #tmnxOamPingResultsTtOFSumSquares => '0',
-    tmnxOamPingResultsAverageTt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsOutJitter => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsMaxRtt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsMaxInTt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    #tmnxOamPingResultsRttOFSumSquares => '0',
-    tmnxOamPingResultsMinTt => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
     tmnxOamPingResultsTestRunResult => {
+        name => "QOS_RESPONSEPATHTEST_TESTRUNRESULT",
         unit => "State",
         short => "",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 1
+        description => "Test RUN Result",
+        flags => 1,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:0"
     },
-    tmnxOamPingResultsInTtHCSumSqrs => {
-        unit => "us",
-        short => "us",
+    tmnxOamPingResultsMinRtt => {
+        name => "QOS_RESPONSEPATHTEST_MINIMUMRTT",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Minimum Round Trip Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:1"
     },
-    #tmnxOamPingResultsSvcPing => 'undetermined',
-    #tmnxOamPingResultsSentProbes => '1 probes',
-    tmnxOamPingResultsRttSumOfSquares => {
-        unit => "us",
-        short => "us",
+    tmnxOamPingResultsAverageRtt => {
+        name => "QOS_RESPONSEPATHTEST_AVERAGERTT",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Average Round Trip Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:3"
     },
-    #tmnxOamPingResultsOperStatus => 'disabled',
-    tmnxOamPingResultsTtSumOfSquares => {
-        unit => "us",
-        short => "us",
+    tmnxOamPingResultsMaxRtt => {
+        name => "QOS_RESPONSEPATHTEST_MAXIMUMRTT",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Maximum Round Trip Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:2"
     },
-    #tmnxOamPingResultsInTtOFSumSqrs => '0',
-    #tmnxOamPingResultsProbeResponses => '1 responses',
-    #tmnxOamPingResultsLastGoodProbe => '2018-3-27,14:39:0.0,+0:0',
-    #tmnxOamPingResultsMtuResponseSize => '0 Octets',
-    #tmnxOamPingResultsProbeTimeouts => '0',
-    tmnxOamPingResultsAverageInTt => {
-        unit => "us",
-        short => "us",
+    tmnxOamPingResultsMinTt => {
+        name => "QOS_RESPONSEPATHTEST_MINIMUMTT",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Minimum Trip Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:4"
+    },
+    tmnxOamPingResultsMaxTt => {
+        name => "QOS_RESPONSEPATHTEST_MAXIMUMTT",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Maximum Trip Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:5"
+    },
+    tmnxOamPingResultsInJitter => {
+        name => "QOS_RESPONSEPATHTEST_JITTERIN",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "IN Jitter",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:9"
+    },
+    tmnxOamPingResultsOutJitter => {
+        name => "QOS_RESPONSEPATHTEST_JITTEROUT",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "OUT Jitter",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:8"
     },
     tmnxOamPingResultsRtJitter => {
-        unit => "us",
-        short => "us",
+        name => "QOS_RESPONSEPATHTEST_RTJITTER",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
-    },
-    tmnxOamPingResultsRttHCSumSquares => {
-        unit => "us",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Round Trip Jitter",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:19"
     },
     tmnxOamPingResultsMinInTt => {
-        unit => "us",
-        short => "us",
+        name => "QOS_RESPONSEPATHTEST_MINIMUMTTIN",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Minimum Trip Time IN",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:6"
     },
-    #tmnxOamPingResultsOutOfOrder => '0 reply PDUs',
-    #tmnxOamPingResultsProbeFailures => '0',
-    tmnxOamPingResultsTtHCSumSquares => {
-        unit => "us",
-        short => "us",
+    tmnxOamPingResultsMaxInTt => {
+        name => "QOS_RESPONSEPATHTEST_MAXIMUMTTIN",
+        unit => "Microseconds",
+        short => "µs",
         group => "QOS_NETWORK",
-        description => "",
-        flags => 0
+        description => "Maximum Trip Time IN",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:7"
+    },
+    tmnxOamPingHistoryResponseMin => {
+        name => "QOS_RESPONSEPATHTEST_MINIMUMRESPONSE",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Minimum Response",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:10"
+    },
+    tmnxOamPingHistoryResponseAvg => {
+        name => "QOS_RESPONSEPATHTEST_AVERAGERESPONSE",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Average Response",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:12"
+    },
+    tmnxOamPingHistoryResponseMax => {
+        name => "QOS_RESPONSEPATHTEST_MAXIMUMRESPONSE",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Maxium Response",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:11"
+    },
+    tmnxOamPingHistoryInOneWayTimeMin => {
+        name => "QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIMEIN",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Minimum One Way Time IN",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:16"
+    },
+    tmnxOamPingHistoryInOneWayTimeAvg => {
+        name => "QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIMEIN",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Average One Way Time IN",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:18"
+    },
+    tmnxOamPingHistoryInOneWayTimeMax => {
+        name => "QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIMEIN",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Maximum One Way Time IN",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:17"
+    },
+    tmnxOamPingHistoryOneWayTimeMin => {
+        name => "QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIME",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Minimum One Way Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:13"
+    },
+    tmnxOamPingHistoryOneWayTimeAvg => {
+        name => "QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIME",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Average One Way Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:15"
+    },
+    tmnxOamPingHistoryOneWayTimeMax => {
+        name => "QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME",
+        unit => "Microseconds",
+        short => "µs",
+        group => "QOS_NETWORK",
+        description => "Maximum One Way Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:14"
     }
 };
 
@@ -311,11 +372,11 @@ sub processProbeConfiguration {
     nimLog(3, "Probe Nokia_ipsla started!"); 
 
     # Minmum security threshold for PollingInterval
-    if($PollingInterval < 60 || $PollingInterval > 1800) {
-        print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
-        nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
-        $PollingInterval = 60;
-    }
+    # if($PollingInterval < 60 || $PollingInterval > 1800) {
+    #     print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
+    #     nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
+    #     $PollingInterval = 60;
+    # }
 
     # Minimum security threshold for CheckInterval
     if($ProvisioningInterval < 10) {
@@ -337,19 +398,19 @@ sub processProbeConfiguration {
     nimQoSSendDefinition(
         "QOS_REACHABILITY",
         "QOS_NETWORK",
-        "Network connectivity response",
+        "Nokia Network connectivity response",
         "State",
         "",
         NIMQOS_DEF_BOOLEAN
     );
     foreach my $QoSName (keys %{ $SnmpQoSSchema }) {
         my $QoS = $SnmpQoSSchema->{$QoSName};
-        print STDOUT "Send QoSDefinition QOS_$QoSName\n";
-        nimLog(3, "Send QoSDefinition QOS_$QoSName");
+        print STDOUT "Send QoSDefinition $QoS->{name}\n";
+        nimLog(3, "Send QoSDefinition $QoS->{name}");
         nimQoSSendDefinition(
-            "QOS_$QoSName",
+            $QoS->{name},
             $QoS->{group},
-            $QoS->{group},
+            $QoS->{description},
             $QoS->{unit},
             $QoS->{short},
             $QoS->{flags}
@@ -603,9 +664,9 @@ sub hydrateDevicesAttributes {
             });
 
             # Generate Reachability QoS
-            my $hCI = ciOpenRemoteDevice("2.1", $Device->{name}, $Device->{ip});
+            my $hCI = ciOpenRemoteDevice("9.1.2", $Device->{name}, $Device->{ip});
             my $QOS = nimQoSCreate("QOS_REACHABILITY", $Device->{name}, $HealthInterval, -1);
-            ciBindQoS($hCI, $QOS, "2.1:1");
+            ciBindQoS($hCI, $QOS, "9.1.2:1");
             nimQoSSendValue($QOS, "reachability", $isPollable);
             ciUnBindQoS($QOS);
             nimQoSFree($QOS);
@@ -618,7 +679,7 @@ sub hydrateDevicesAttributes {
                 source  => $Device->{ip},
                 dev_id  => $Device->{dev_id},
                 hCI     => $hCI,
-                metric  => "2.1:1"
+                metric  => "9.1.2:1"
             });
         }
         print STDOUT "Health Polling thread finished\n";
@@ -1115,11 +1176,90 @@ sub snmpWorker {
             nimLog(3, "Successfully gettable $snmpTable on device $device->{name} in ${executionTimeMs}ms");
         }
 
-        # TODO: Aggregate rows for History type
+        # Agregate rows for History type
         if($snmpTable eq "tmnxOamPingHistoryTable") {
+            my $testByName = {};
+            my $agregateResult = {};
+
+            foreach my $testOid (keys %{ $result }) {
+                my $completeTestName = src::utils::ascii_oid($testOid, 1);
+                my @splitOid = split(/\./, $completeTestName);
+                my $seq = pop @splitOid;
+                my $testId = pop @splitOid;
+                my $testNameStr = src::utils::ascii_oid($testOid, 0);
+                if (not defined($testByName->{$testNameStr})) {
+                    $testByName->{$testNameStr} = [];
+                    $agregateResult->{$testNameStr} = {};
+                }
+
+                my $currTest = $result->{$testOid};
+                push(@{$testByName->{$testNameStr}}, {
+                    seq => $seq,
+                    id => $testId,
+                    completeName => $completeTestName,
+                    tmnxOamPingHistoryInOneWayTime => $SnmpQoSValueParser->{"µs"}($currTest->{tmnxOamPingHistoryInOneWayTime}),
+                    tmnxOamPingHistoryResponse => $SnmpQoSValueParser->{"µs"}($currTest->{tmnxOamPingHistoryResponse}),
+                    tmnxOamPingHistoryOneWayTime => $SnmpQoSValueParser->{"µs"}($currTest->{tmnxOamPingHistoryOneWayTime}),
+                    tmnxOamPingHistoryTime => $currTest->{tmnxOamPingHistoryTime}
+                });
+            }
+
+            # Filter by id and sequence
+            foreach my $testName (keys %{ $testByName }) {
+                my @tests = @{ $testByName->{$testName} };
+                foreach(@tests) {
+                    my $id  = $_->{id};
+                    my $seq = $_->{seq};
+
+                    if (not defined($agregateResult->{$testName}->{$id})) {
+                        $agregateResult->{$testName}->{$id} = [];
+                    }
+                    $agregateResult->{$testName}->{$id}[$seq - 1] = {
+                        completeName => $_->{completeName},
+                        tmnxOamPingHistoryInOneWayTime => $_->{tmnxOamPingHistoryInOneWayTime},
+                        tmnxOamPingHistoryResponse => $_->{tmnxOamPingHistoryResponse},
+                        tmnxOamPingHistoryOneWayTime => $_->{tmnxOamPingHistoryOneWayTime},
+                        tmnxOamPingHistoryTime => $_->{tmnxOamPingHistoryTime}
+                    };
+                }
+            }
+            my $finalResult = {};
+
+            # Calcule min/max/avg
+            foreach my $testName (keys %{ $agregateResult }) {
+                foreach my $id (keys %{ $agregateResult->{$testName} }) {
+                    my @tests = @{ $agregateResult->{$testName}->{$id} };
+                    my @response = ();
+                    my @oneWayTime = ();
+                    my @inOneWayTime = ();
+
+                    foreach(@tests) {
+                        push(@response, $_->{tmnxOamPingHistoryResponse});
+                        push(@oneWayTime, $_->{tmnxOamPingHistoryOneWayTime});
+                        push(@inOneWayTime, $_->{tmnxOamPingHistoryInOneWayTime});
+                    }
+                    my $completeName = $agregateResult->{$testName}->{$id}[0]->{completeName};
+                    my $time = $agregateResult->{$testName}->{$id}[0]->{tmnxOamPingHistoryTime};
+
+                    $finalResult->{$completeName} = {
+                        tmnxOamPingHistoryTime => $time,
+                        tmnxOamPingHistoryResponseMin => min(@response),
+                        tmnxOamPingHistoryResponseAvg => mean(@response),
+                        tmnxOamPingHistoryResponseMax => max(@response),
+                        tmnxOamPingHistoryOneWayTimeMin => min(@oneWayTime),
+                        tmnxOamPingHistoryOneWayTimeAvg => mean(@oneWayTime),
+                        tmnxOamPingHistoryOneWayTimeMax => max(@oneWayTime),
+                        tmnxOamPingHistoryInOneWayTimeMin => min(@inOneWayTime),
+                        tmnxOamPingHistoryInOneWayTimeAvg => mean(@inOneWayTime),
+                        tmnxOamPingHistoryInOneWayTimeMax => max(@inOneWayTime)
+                    };
+                }
+            }
+
+            $result = $finalResult;
         }
 
-        my $hCI = ciOpenRemoteDevice("2.1", $device->{name}, $device->{ip});
+        my $hCI = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
         foreach my $testOid (keys %{ $result }) {
             my $testNameStr = src::utils::ascii_oid($testOid, 0);
             OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
@@ -1150,6 +1290,7 @@ sub snmpWorker {
                     eval {
                         my $diff = Time::Piece->strptime($context->{startTime}, $format) - Time::Piece->strptime($timeDate, $format);
                         if($diff > 0) {
+                            print STDOUT "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}\n";
                             nimLog(3, "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}");
                             last OID;
                         }
@@ -1160,6 +1301,7 @@ sub snmpWorker {
                 foreach my $fieldName (@{ $filter->{fields} }) {
                     next unless defined($currTest->{$fieldName});
                     if(!defined($SnmpQoSSchema->{$fieldName})) {
+                        print STDOUT "Unknow QoS type for field $fieldName, table: $snmpTable, device: $device->{name}\n";
                         nimLog(2, "Unknow QoS type for field $fieldName, table: $snmpTable, device: $device->{name}");
                         next;
                     }
@@ -1168,8 +1310,8 @@ sub snmpWorker {
                     
                     # Create QoS
                     my $QoSTimestamp = time();
-                    my $QOS = nimQoSCreate("QOS_$fieldName", $device->{name}, $PollingInterval, -1);
-                    ciBindQoS($hCI, $QOS, $fieldName);
+                    my $QOS = nimQoSCreate($QoSType->{name}, $device->{name}, $PollingInterval, -1);
+                    ciBindQoS($hCI, $QOS, $QoSType->{metric_name});
                     nimQoSSendValue($QOS, $testNameStr, $fieldValue);
                     ciUnBindQoS($QOS);
                     nimQoSFree($QOS);
