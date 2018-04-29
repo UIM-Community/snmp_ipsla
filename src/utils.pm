@@ -9,10 +9,20 @@ use Nimbus::API;
 use Nimbus::PDS;
 
 # Export utils functions
-our @EXPORT_OK = qw(nimId generateAlarm generateQoS parseAlarmVariable generateDeviceId generateMetId ascii_oid);
+our @EXPORT_OK = qw(nimId generateAlarm generateQoS parseAlarmVariable generateDeviceId generateMetId ascii_oid isBase64);
 
 sub rndStr {
     return join '', @_[ map { rand @_ } 1 .. shift ];
+}
+
+# Check if a given string is base64 or not
+sub isBase64 {
+    my ($str) = @_;
+    return 0 if not defined $str;
+    if($str =~ m/^([A-Za-z0-9+\/]{4})*([A-Za-z0-9+\/]{4}|[A-Za-z0-9+\/]{3}=|[A-Za-z0-9+\/]{2}==)$/) {
+        return 1;
+    }
+    return 0;
 }
 
 # Generate NimSoft id

@@ -49,17 +49,17 @@ my $sess;
 
 # Set array average!
 sub mean { 
-    return @_ ? sum(@_) / @_ : 0 
+    return @_ ? sum(@_) / @_ : 0
 }
 
 # SNMP QoS Parser routines
 my $SnmpQoSValueParser = {
-    "µs" => sub {
+    Microseconds => sub {
         my ($strValue) = @_;
         my @matches = $strValue =~ /(.*)\smicroseconds/g;
         return $matches[0];
     },
-    "State" => sub {
+    State => sub {
         my ($strValue) = @_;
         return $strValue eq "success";
     }
@@ -80,7 +80,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsMinRtt => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMRTT",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Minimum Round Trip Time",
         flags => 0,
@@ -90,7 +90,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsAverageRtt => {
         name => "QOS_RESPONSEPATHTEST_AVERAGERTT",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Average Round Trip Time",
         flags => 0,
@@ -100,7 +100,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsMaxRtt => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMRTT",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Maximum Round Trip Time",
         flags => 0,
@@ -110,7 +110,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsMinTt => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMTT",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Minimum Trip Time",
         flags => 0,
@@ -120,7 +120,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsMaxTt => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMTT",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Maximum Trip Time",
         flags => 0,
@@ -130,7 +130,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsInJitter => {
         name => "QOS_RESPONSEPATHTEST_JITTERIN",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "IN Jitter",
         flags => 0,
@@ -140,7 +140,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsOutJitter => {
         name => "QOS_RESPONSEPATHTEST_JITTEROUT",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "OUT Jitter",
         flags => 0,
@@ -150,7 +150,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsRtJitter => {
         name => "QOS_RESPONSEPATHTEST_RTJITTER",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Round Trip Jitter",
         flags => 0,
@@ -160,7 +160,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsMinInTt => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMTTIN",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Minimum Trip Time IN",
         flags => 0,
@@ -170,7 +170,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingResultsMaxInTt => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMTTIN",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Maximum Trip Time IN",
         flags => 0,
@@ -180,7 +180,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryResponseMin => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMRESPONSE",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Minimum Response",
         flags => 0,
@@ -190,7 +190,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryResponseAvg => {
         name => "QOS_RESPONSEPATHTEST_AVERAGERESPONSE",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Average Response",
         flags => 0,
@@ -200,7 +200,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryResponseMax => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMRESPONSE",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Maxium Response",
         flags => 0,
@@ -210,7 +210,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryInOneWayTimeMin => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIMEIN",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Minimum One Way Time IN",
         flags => 0,
@@ -220,7 +220,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryInOneWayTimeAvg => {
         name => "QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIMEIN",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Average One Way Time IN",
         flags => 0,
@@ -230,7 +230,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryInOneWayTimeMax => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIMEIN",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Maximum One Way Time IN",
         flags => 0,
@@ -240,7 +240,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryOneWayTimeMin => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIME",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Minimum One Way Time",
         flags => 0,
@@ -250,7 +250,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryOneWayTimeAvg => {
         name => "QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIME",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Average One Way Time",
         flags => 0,
@@ -260,7 +260,7 @@ my $SnmpQoSSchema = {
     tmnxOamPingHistoryOneWayTimeMax => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME",
         unit => "Microseconds",
-        short => "µs",
+        short => "us",
         group => "QOS_NETWORK",
         description => "Maximum One Way Time",
         flags => 0,
@@ -326,21 +326,21 @@ sub processProbeConfiguration {
     $DB_Password    = $CFG->{"database"}->{"password"};
 
     # Crypt CFG Credential keys!
-    if(substr($DB_Password, length($DB_Password) - 2, 2) ne "==") {
+    if(src::utils::isBase64($DB_Password)) {
+        $DB_Password = nimDecryptString($CRED_KEY, $DB_Password);
+    }
+    else {
         my $CFGNapi = cfgOpen(CFG_FILE, 0);
         my $cValue = nimEncryptString($CRED_KEY, $DB_Password);
         cfgKeyWrite($CFGNapi, "/database/", "password", $cValue); 
         cfgSync($CFGNapi);
         cfgClose($CFGNapi);
     }
-    else {
-        $DB_Password = nimDecryptString($CRED_KEY, $DB_Password);
-    }
 
     # provisioning Section 
     $XMLDirectory           = $CFG->{"provisioning"}->{"xml_dir"} || "./xml";
     $RemoveDevicesInterval  = $CFG->{"provisioning"}->{"decommission_interval"} || 300;
-    $DecommissionSQLTable   = $CFG->{"provisioning"}->{"decommission_sqltable"} || "nokia_ipsla_decommission";
+    $DecommissionSQLTable   = "nokia_ipsla_decommission";
     $ProvisioningInterval   = $CFG->{"provisioning"}->{"provisioning_interval"} || 30;
     $PollingInterval        = $CFG->{"provisioning"}->{"polling_snmp_interval"} || 360;
     $HealthInterval         = $CFG->{"provisioning"}->{"polling_health_interval"} || 30;
@@ -372,11 +372,11 @@ sub processProbeConfiguration {
     nimLog(3, "Probe Nokia_ipsla started!"); 
 
     # Minmum security threshold for PollingInterval
-    # if($PollingInterval < 60 || $PollingInterval > 1800) {
-    #     print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
-    #     nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
-    #     $PollingInterval = 60;
-    # }
+    if($PollingInterval < 60 || $PollingInterval > 1800) {
+        print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
+        nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
+        $PollingInterval = 60;
+    }
 
     # Minimum security threshold for CheckInterval
     if($ProvisioningInterval < 10) {
@@ -553,7 +553,16 @@ sub processXMLFiles {
     nimLog(3, "Entering processXMLFiles() !");
     my $processXMLFilesTimer = nimTimerCreate();
     nimTimerStart($processXMLFilesTimer);
-    my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
+    };
+    if($@) {
+        print STDERR $@;
+        nimLog(1, $@);
+        $readXML_open = 0;
+        return;
+    }
 
     # Connect to MySQL (optionaly)
     my $devicesUUID = {};
@@ -597,13 +606,16 @@ sub processXMLFiles {
     nimLog(3, "Successfully processed $processed_files XML file(s) in ${execution_time}ms !");
     $SQLDB->close();
     
-    eval {
-        hydrateDevicesAttributes() if $updateDevicesAttr == 0;
-    };
-    if($@) {
-        print STDERR $@;
-        nimLog(1, $@);
-        $updateDevicesAttr = 0;
+    # Run hydrateDevicesAttributes only if at least one XML file has been processed!
+    if($processed_files > 0) {
+        eval {
+            hydrateDevicesAttributes() if $updateDevicesAttr == 0;
+        };
+        if($@) {
+            print STDERR $@;
+            nimLog(1, $@);
+            $updateDevicesAttr = 0;
+        }
     }
     $readXML_open = 0;
 }
@@ -621,7 +633,16 @@ sub hydrateDevicesAttributes {
     nimLog(3, "Starting hydratation of Devices attributes");
 
     # Get all pollable devices from SQLite!
-    my $SQLDB           = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    };
+    if($@) {
+        print STDERR $@;
+        nimLog(1, $@);
+        $updateDevicesAttr = 0;
+        return;
+    }
     my $threadQueue     = Thread::Queue->new();
     my $pollableResponseQueue   = Thread::Queue->new();
     $threadQueue->enqueue($_) for @{ $SQLDB->pollable_devices() };
@@ -649,11 +670,28 @@ sub hydrateDevicesAttributes {
         print STDOUT "Health Polling thread started\n";
         nimLog(3, "Health Polling thread started");
 
-        my $SQLDB       = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        my $SQLDB;
+        eval {
+            $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        };
+        if($@) {
+            print STDERR $@;
+            nimLog(1, $@);
+            return;
+        }
         my $snmpManager = src::snmpmanager->new();
         while ( defined ( my $Device = $threadQueue->dequeue() ) ) {
-            my $result          = $snmpManager->snmpSysInformations($Device);
+            my $result;
+            eval {
+                $result = $snmpManager->snmpSysInformations($Device);
+            };
+            if($@) {
+                print STDERR $@;
+                next;
+            }
             my $isPollable      = ref($result) eq "HASH" ? 1 : 0;
+            print STDOUT "sysObjectID => $result->{sysObjectID}\n";
+
             my $isPollableStr   = $isPollable ? "true" : "false";
             print STDOUT "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr\n";
             nimLog(2, "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr");
@@ -698,7 +736,16 @@ sub hydrateDevicesAttributes {
     $pollableResponseQueue->enqueue(undef);
 
     # Update pollable values!
-    my $SQLDB       = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    };
+    if($@) {
+        print STDERR $@;
+        nimLog(1, $@);
+        $updateDevicesAttr = 0;
+        return;
+    }
     $SQLDB->{DB}->begin_work;
     while ( defined ( my $Device = $pollableResponseQueue->dequeue() ) ) {
         $SQLDB->updatePollable($Device->{uuid}, $Device->{pollable});
@@ -745,7 +792,17 @@ sub removeDevices {
     }
     
     my @deviceToRemove = ();
-    my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
+    
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
+    };
+    if($@) {
+        print STDERR $@;
+        nimLog(1, $@);
+        $removeDevicesRunning = 0;
+        return;
+    }
     my $sth = $SQLDB->{DB}->prepare("SELECT uuid, snmp_uuid FROM nokia_ipsla_device WHERE is_active=1");
     $sth->execute();
     while(my $row = $sth->fetchrow_hashref) {
@@ -936,11 +993,16 @@ sub remove_device {
     nimLog(3, "Callback remove_device triggered");
     nimLog(3, "Action requested: Remove device => $deviceName");
 
-    # Connect to the SQLite
-    my $SQLDB = src::dbmanager->new(
-        './db/nokia_ipsla.db',
-        $CRED_KEY
-    )->import_def('./db/database_definition.sql');
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    };
+    if($@) {
+        my $PDS = Nimbus::PDS->new(); 
+        $PDS->put("error", "Failed to open local SQLite database!", PDS_PCH);
+        return nimSendReply($hMsg, NIME_ERROR, $PDS->data);
+    }
+
     my $sth = $SQLDB->{DB}->prepare('SELECT uuid FROM nokia_ipsla_device WHERE name=?');
     $sth->execute($deviceName);
     my $uuid;
@@ -1016,7 +1078,11 @@ sub polling {
     if($QoSHandlers->pending() > 0) {
         print "Insert all recolted QoS in the SQLite DB!\n";
         nimLog(2, "Insert all recolted QoS in the SQLite DB!");
-        my $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        my $SQLDB;
+        eval {
+            $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        };
+        die $@ if $@;
         $SQLDB->{DB}->begin_work;
         while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
             eval {
@@ -1043,7 +1109,11 @@ sub polling {
 
     my $timeline = threads->create(sub {
         # Get devices
-        my $SQLDB   = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        my $SQLDB;
+        eval {
+            $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        };
+        die $@ if $@;
         my @devices = @{ $SQLDB->pollable_devices() };
         $SQLDB->close();
 
@@ -1076,7 +1146,7 @@ sub polling {
     threads->create(sub {
         print STDOUT "SNMP Pool-polling thread started!\n";
         nimLog(3, "SNMP Pool-polling thread started!");
-        my $startTime;
+        my $startTime = localtime(time);
         {
             my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
             $year+= 1900;
@@ -1142,7 +1212,7 @@ sub snmpWorker {
     my $snmpSession = src::snmpmanager->new()->initSnmpSession($device);
     if(!defined($snmpSession)) {
         nimLog(1, "Exiting snmpWorker() thread for device $device->{name}");
-        threads->exit();
+        return;
     }
 
     # Foreach all templates tests!
@@ -1151,11 +1221,11 @@ sub snmpWorker {
         my $getTableExecutionTime = nimTimerCreate();
         nimTimerStart($getTableExecutionTime);
         eval {
-            my $oid     = &SNMP::translateObj($snmpTable);
-            $result     = $snmpSession->gettable($oid, nogetbulk => 1);
+            $result     = $snmpSession->gettable($snmpTable, nogetbulk => 1);
         };
         if($@ || !defined($result)) {
             nimLog(1, "Failed to execute gettable on device $device->{name} for table $snmpTable");
+            print STDERR "Failed to execute gettable on device $device->{name} for table $snmpTable\n";
             $AlarmQueue->enqueue({
                 type    => "gettable_fail",
                 device  => $device->{name},
@@ -1176,8 +1246,10 @@ sub snmpWorker {
             nimLog(3, "Successfully gettable $snmpTable on device $device->{name} in ${executionTimeMs}ms");
         }
 
+        my $isHistoryTable = 0;
         # Agregate rows for History type
         if($snmpTable eq "tmnxOamPingHistoryTable") {
+            $isHistoryTable = 1;
             my $testByName = {};
             my $testOids = {};
             my $agregateResult = {};
@@ -1200,9 +1272,9 @@ sub snmpWorker {
                     seq => $seq,
                     id => $testId,
                     completeName => $completeTestName,
-                    tmnxOamPingHistoryInOneWayTime => $SnmpQoSValueParser->{"µs"}($currTest->{tmnxOamPingHistoryInOneWayTime}),
-                    tmnxOamPingHistoryResponse => $SnmpQoSValueParser->{"µs"}($currTest->{tmnxOamPingHistoryResponse}),
-                    tmnxOamPingHistoryOneWayTime => $SnmpQoSValueParser->{"µs"}($currTest->{tmnxOamPingHistoryOneWayTime}),
+                    tmnxOamPingHistoryInOneWayTime => $SnmpQoSValueParser->{"Microseconds"}($currTest->{tmnxOamPingHistoryInOneWayTime}),
+                    tmnxOamPingHistoryResponse => $SnmpQoSValueParser->{"Microseconds"}($currTest->{tmnxOamPingHistoryResponse}),
+                    tmnxOamPingHistoryOneWayTime => $SnmpQoSValueParser->{"Microseconds"}($currTest->{tmnxOamPingHistoryOneWayTime}),
                     tmnxOamPingHistoryTime => $currTest->{tmnxOamPingHistoryTime}
                 });
             }
@@ -1258,7 +1330,6 @@ sub snmpWorker {
                     };
                 }
             }
-
             $result = $finalResult;
         }
 
@@ -1282,7 +1353,7 @@ sub snmpWorker {
 
                 # Handle timer
                 {   
-                    my @group       = split(",",$timeField);
+                    my @group       = split(",", $timeField);
                     my @f1          = split('-', $group[0]);
                     my @f2          = split(':', $group[1]);
                     my $timeDate    = sprintf(
@@ -1290,15 +1361,12 @@ sub snmpWorker {
                         $f1[0], $f1[1], $f1[2], $f2[0], $f2[1], $f2[2]
                     );
                     my $format = "%Y:%m:%d %H:%M:%S";
-                    eval {
-                        my $diff = Time::Piece->strptime($context->{startTime}, $format) - Time::Piece->strptime($timeDate, $format);
-                        if($diff > 0) {
-                            print STDOUT "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}\n";
-                            nimLog(3, "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}");
-                            last OID;
-                        }
-                    };
-                    print STDERR $@ if $@;
+                    my $diff = Time::Piece->strptime($context->{startTime}, $format) - Time::Piece->strptime($timeDate, $format);
+                    if($diff > 0) {
+                        print STDOUT "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}\n";
+                        nimLog(3, "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}");
+                        last OID;
+                    }
                 }
 
                 foreach my $fieldName (@{ $filter->{fields} }) {
@@ -1309,7 +1377,7 @@ sub snmpWorker {
                         next;
                     }
                     my $QoSType     = $SnmpQoSSchema->{$fieldName};
-                    my $fieldValue  = $SnmpQoSValueParser->{$QoSType->{unit}}($currTest->{$fieldName});
+                    my $fieldValue  = $isHistoryTable == 1 ? $currTest->{$fieldName} : $SnmpQoSValueParser->{$QoSType->{unit}}($currTest->{$fieldName});
                     
                     # Create QoS
                     my $QoSTimestamp = time();
@@ -1321,8 +1389,8 @@ sub snmpWorker {
 
                     # Enqueue QoS
                     # $QoSHandlers->enqueue({
-                    #     name    => "QOS_$fieldName",
-                    #     type    => $QoSType->{unit},
+                    #     name    => $QoSType->{name},
+                    #     type    => $QoSType->{short},
                     #     value   => $fieldValue,
                     #     probe   => $testNameStr,
                     #     device  => $device->{name},

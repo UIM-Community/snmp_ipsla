@@ -2,7 +2,6 @@ package src::snmpmanager;
 
 # Perl Core package(s)
 use strict;
-use Data::Dumper;
 
 # Third-party packages(s)
 use SNMP;
@@ -64,8 +63,6 @@ sub initSnmpSession {
     my ($self, $hashRef) = @_;
     print STDOUT "Create new SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}\n";
     nimLog(3, "Create new SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}");
-    my $executionTime = nimTimerCreate();
-    nimTimerStart($executionTime);
     my $sess = new SNMP::Session(
         DestHost    => $hashRef->{ip},
         Version     => $hashRef->{snmp_version},
@@ -78,17 +75,14 @@ sub initSnmpSession {
         Retries     => 3,
         SecLevel    => "authPriv"
     );
-    nimTimerStop($executionTime);
-    my $executionTimeMs = nimTimerDiff($executionTime);
-    nimTimerFree($executionTime);
     if(!defined($sess)) {
-        print STDOUT "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}. Execution time: $executionTimeMs ms\n";
-        nimLog(2, "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}. Execution time: $executionTimeMs ms");
+        print STDOUT "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}.\n";
+        nimLog(2, "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}.");
         return undef;
     }
     else {
-        print STDOUT "SNMP Session initialized successfully in ${executionTimeMs}ms for $hashRef->{name}\n";
-        nimLog(3, "SNMP Session initialized successfully in ${executionTimeMs}ms for $hashRef->{name}");
+        print STDOUT "SNMP Session initialized successfully for $hashRef->{name}\n";
+        nimLog(3, "SNMP Session initialized successfully for $hashRef->{name}");
     }
     return $sess;
 }
