@@ -9,10 +9,23 @@ use Nimbus::API;
 use Nimbus::PDS;
 
 # Export utils functions
-our @EXPORT_OK = qw(nimId generateAlarm generateQoS parseAlarmVariable generateDeviceId generateMetId ascii_oid isBase64);
+our @EXPORT_OK = qw(nimId parseSNMPNokiaDate generateAlarm generateQoS parseAlarmVariable generateDeviceId generateMetId ascii_oid isBase64);
 
 sub rndStr {
     return join '', @_[ map { rand @_ } 1 .. shift ];
+}
+
+# Parse SNMP Nokia date
+sub parseSNMPNokiaDate {
+    my ($str) = @_;
+    my @group       = split(",", $str);
+    my @f1          = split('-', $group[0]);
+    my @f2          = split(':', $group[1]);
+    my $timeDate    = sprintf(
+        "%02d:%02d:%02d %02d:%02d:%02d",
+        $f1[0], $f1[1], $f1[2], $f2[0], $f2[1], $f2[2]
+    );
+    return $timeDate;
 }
 
 # Check if a given string is base64 or not

@@ -372,11 +372,11 @@ sub processProbeConfiguration {
     nimLog(3, "Probe Nokia_ipsla started!"); 
 
     # Minmum security threshold for PollingInterval
-    if($PollingInterval < 60 || $PollingInterval > 1800) {
-        print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
-        nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
-        $PollingInterval = 60;
-    }
+    # if($PollingInterval < 60 || $PollingInterval > 1800) {
+    #     print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
+    #     nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
+    #     $PollingInterval = 60;
+    # }
 
     # Minimum security threshold for CheckInterval
     if($ProvisioningInterval < 10) {
@@ -1120,6 +1120,12 @@ sub polling {
         # Establish timeline
         my $totalTimeMs = (($PollingInterval / 100) * 90) * 1000;
         my $totalEquipments = scalar @devices;
+        if ($totalEquipments == 0) {
+            print "0 SNMP devices to be polled. Exiting polling phase!\n";
+            nimLog(2, "0 SNMP devices to be polled. Exiting polling phase!");
+            $deviceHandlerQueue->enqueue(undef);
+            return;
+        }
         my $poolPollingInterval = floor($totalTimeMs / $totalEquipments) / 1000;
 
         print "SNMP Pool Polling limitation (ms) => $totalTimeMs ms\n";
@@ -1146,19 +1152,16 @@ sub polling {
     threads->create(sub {
         print STDOUT "SNMP Pool-polling thread started!\n";
         nimLog(3, "SNMP Pool-polling thread started!");
-        my $startTime = localtime(time);
-        {
-            my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
-            $year+= 1900;
-            $startTime = sprintf(
-                "${year}:%02d:%02d %02d:%02d:%02d",
-                ($mon+1),
-                $mday,
-                $hour - floor( ( $PollingInterval + ( $min * 60 ) ) / 3600 ),
-                ( ( $PollingInterval * 60 ) + $min ) % 60,
-                $sec
-            );
-        }
+        my $startTime = localtime(time) - $PollingInterval;
+        $startTime = sprintf(
+            "%04d:%02d:%02d %02d:%02d:%02d",
+            $startTime->year,
+            $startTime->mon,
+            $startTime->mday,
+            $startTime->hour,
+            $startTime->min,
+            $startTime->sec
+        );
 
         # read (templates) configuration
         my $CFG = Nimbus::CFG->new(CFG_FILE);
@@ -1333,12 +1336,12 @@ sub snmpWorker {
             $result = $finalResult;
         }
 
-        my $hCI = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
         foreach my $testOid (keys %{ $result }) {
             my $testNameStr = src::utils::ascii_oid($testOid, 0);
             OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
                 next unless $testNameStr =~ $filter->{nameExpr};
                 my $currTest = $result->{$testOid};
+                my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{ip});
                 nimLog(4, "Matching test name => $testNameStr");
                 print STDOUT "Matching test name => $testNameStr\n";
                 
@@ -1352,16 +1355,9 @@ sub snmpWorker {
                 }
 
                 # Handle timer
-                {   
-                    my @group       = split(",", $timeField);
-                    my @f1          = split('-', $group[0]);
-                    my @f2          = split(':', $group[1]);
-                    my $timeDate    = sprintf(
-                        "%02d:%02d:%02d %02d:%02d:%02d",
-                        $f1[0], $f1[1], $f1[2], $f2[0], $f2[1], $f2[2]
-                    );
-                    my $format = "%Y:%m:%d %H:%M:%S";
-                    my $diff = Time::Piece->strptime($context->{startTime}, $format) - Time::Piece->strptime($timeDate, $format);
+                {
+                    my $timeDate = src::utils::parseSNMPNokiaDate($timeField);
+                    my $diff = $context->{startTime} - Time::Piece->strptime($timeDate, "%Y:%m:%d %H:%M:%S");
                     if($diff > 0) {
                         print STDOUT "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}\n";
                         nimLog(3, "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}");
@@ -1398,9 +1394,9 @@ sub snmpWorker {
                     # });
                 }
                 last OID;
+                ciClose($hCI);
             }
         }
-        ciClose($hCI);
     }
 
     print STDOUT "Finished device $device->{name}\n";
