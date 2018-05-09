@@ -372,11 +372,11 @@ sub processProbeConfiguration {
     nimLog(3, "Probe Nokia_ipsla started!"); 
 
     # Minmum security threshold for PollingInterval
-    # if($PollingInterval < 60 || $PollingInterval > 1800) {
-    #     print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
-    #     nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
-    #     $PollingInterval = 60;
-    # }
+    if($PollingInterval < 60 || $PollingInterval > 1800) {
+        print STDOUT "SNMP Polling interval minimum and threshold is <60/1800> seconds!\n";
+        nimLog(2, "SNMP Polling interval minimum and threshold is <60/1800> seconds!"); 
+        $PollingInterval = 60;
+    }
 
     # Minimum security threshold for CheckInterval
     if($ProvisioningInterval < 10) {
@@ -950,7 +950,93 @@ sub startAlarmMetricHandlerThread {
 # @subroutine QoSHistory
 # @desc Handle QoSHistory
 sub QoSHistory {
-    # TODO: Request SQLite view
+
+    # Retrieve all profiles with threshold
+    my $Profiles = {};
+    {
+        my $CFG = Nimbus::CFG->new(CFG_FILE);
+        my @sections = $CFG->getSections($CFG->{alerting});
+        foreach my $secId (@sections) {
+            my $sec = $CFG->{alerting}->{$secId};
+            my $keys = {};
+            my @tmnxKeys = $CFG->getSections($sec);
+            foreach my $tmnxKey (@tmnxKeys) {
+                my @ret = ();
+                my @messages = $CFG->getSections($sec->{$tmnxKey});
+                foreach(@messages) {
+                    my $threshold = $sec->{$tmnxKey}->{$_}->{threshold};
+                    push(@ret, {
+                        threshold => $threshold,
+                        message => $_
+                    });
+                }
+                $keys->{$tmnxKey} = \@ret;
+            }
+    
+            $Profiles->{$secId} = {
+                name => qr/$sec->{saa_name}/,
+                keys => $keys
+            };
+        }
+    }
+
+    # 2. Get data from SQLite DB
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    };
+    die $@ if $@;
+
+    my $sth = $SQLDB->{DB}->prepare(
+        "SELECT device_name, name, probe, type, ROUND(AVG(value), 1) as value FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time"
+    );
+    $sth->execute;
+    my @rows = ();
+    while(my $row = $sth->fetchrow_hashref) {
+        push(@rows, $row);
+    }
+
+    # 3. math actions (match testname with regex)
+    foreach my $secId (keys %{ $Profiles }) {
+        my $regex   = $Profiles->{$secId}->{name};
+        my $keys    = $Profiles->{$secId}->{keys};
+
+        foreach my $sql (@rows) {
+            next unless $sql->{probe} =~ $regex;
+            next unless defined($keys->{$sql->{name}});
+
+            my $qosValue    = $sql->{value};
+            my @thresholds  = @{ $keys->{$sql->{name}} };
+            foreach(@thresholds) {
+                next unless $_->{threshold} <= $qosValue;
+
+                # Throw alarm with message
+                $AlarmQueue->enqueue({
+                    type    => $_->{message},
+                    device  => $sql->{device_name},
+                    source  => $sql->{source} || "",
+                    payload => {
+                        threshold => $_->{threshold},
+                        device  => $sql->{device_name},
+                        source  => $sql->{source},
+                        qos     => $sql->{name},
+                        test    => $sql->{probe},
+                        unit    => $sql->{type},
+                        value   => $qosValue
+                    }
+                });
+            }
+        }
+    }
+
+    # 4. Clean last rows of each groups
+    my $deleteSh = $SQLDB->{DB}->prepare(
+        "DELETE FROM nokia_ipsla_metrics WHERE id IN (
+            SELECT id FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time DESC
+        )"
+    );
+    $deleteSh->execute;
+    $deleteSh->finish;
 }
 
 # @callback get_info
@@ -1087,10 +1173,11 @@ sub polling {
         while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
             eval {
                 $SQLDB->{DB}->prepare(
-                    "INSERT INTO nokia_ipsla_metrics (name, device_name, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?)"
+                    "INSERT INTO nokia_ipsla_metrics (name, device_name, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?)"
                 )->execute(
                     $QoSRow->{name},
                     $QoSRow->{device},
+                    $QoSRow->{source},
                     $QoSRow->{probe},
                     $QoSRow->{type},
                     $QoSRow->{value},
@@ -1384,14 +1471,15 @@ sub snmpWorker {
                     nimQoSFree($QOS);
 
                     # Enqueue QoS
-                    # $QoSHandlers->enqueue({
-                    #     name    => $QoSType->{name},
-                    #     type    => $QoSType->{short},
-                    #     value   => $fieldValue,
-                    #     probe   => $testNameStr,
-                    #     device  => $device->{name},
-                    #     time    => $QoSTimestamp
-                    # });
+                    $QoSHandlers->enqueue({
+                        name    => $QoSType->{name},
+                        type    => $QoSType->{short},
+                        value   => $fieldValue,
+                        probe   => $testNameStr,
+                        device  => $device->{name},
+                        source  => $device->{ip},
+                        time    => $QoSTimestamp
+                    });
                 }
                 last OID;
                 ciClose($hCI);
