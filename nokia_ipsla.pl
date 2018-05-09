@@ -1032,7 +1032,7 @@ sub QoSHistory {
     # 4. Clean last rows of each groups
     my $deleteSh = $SQLDB->{DB}->prepare(
         "DELETE FROM nokia_ipsla_metrics WHERE id IN (
-            SELECT id FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time DESC
+            SELECT id FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time
         )"
     );
     $deleteSh->execute;
