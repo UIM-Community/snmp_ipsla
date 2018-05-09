@@ -4,12 +4,6 @@
 
 - Création d'une issue à cause d'un segmentation fault sur la LIB SNMP (lors des échecs).
 
-## TODO
-
-- Vérifier que le système de timer est valide et fonctionelle !
-- Voir s'il est possible d'identifier le type d'un équipement avec sysObjectID (Nokia ou non).
-- Finir l'alerting.
-
 ```
 *** Error in `../../../perl/bin/perl': corrupted double-linked list: 0x00007f6470024fc0 ***
 Failed to get SNMP systemVarList with hostname MY-NOKIA, ip 75.1.56.41
