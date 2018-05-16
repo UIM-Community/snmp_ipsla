@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS "nokia_ipsla_metrics" (
 "probe" VARCHAR(100) NOT NULL,
 "type" VARCHAR(25) NOT NULL,
 "value" INTEGER NOT NULL,
-"time" NUMERIC NOT NULL
+"time" DATETIME NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "nokia_ipsla_device_attr" (
