@@ -1033,12 +1033,12 @@ sub QoSHistory {
     my $dt = localtime(time) - ($PollingInterval * 3);
     $dt = sprintf(
         "%04d-%02d-%02d %02d:%02d:%02d",
-        $startTime->year,
-        $startTime->mon,
-        $startTime->mday,
-        $startTime->hour,
-        $startTime->min,
-        $startTime->sec
+        $dt->year,
+        $dt->mon,
+        $dt->mday,
+        $dt->hour,
+        $dt->min,
+        $dt->sec
     );
     my $deleteSh = $SQLDB->{DB}->prepare(
         "DELETE FROM nokia_ipsla_metrics WHERE id IN (
