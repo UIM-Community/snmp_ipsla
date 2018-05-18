@@ -1032,7 +1032,7 @@ sub QoSHistory {
     # 4. Clean last rows of each groups
     my $dt = localtime(time) - ($PollingInterval * 3);
     $dt = sprintf(
-        "%04d:%02d:%02d %02d:%02d:%02d",
+        "%04d-%02d-%02d %02d:%02d:%02d",
         $startTime->year,
         $startTime->mon,
         $startTime->mday,
