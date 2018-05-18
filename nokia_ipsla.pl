@@ -1030,13 +1030,22 @@ sub QoSHistory {
     }
 
     # 4. Clean last rows of each groups
-    my $dt = ceil($PollingInterval / 60);
+    my $dt = localtime(time) - ($PollingInterval * 3);
+    $dt = sprintf(
+        "%04d:%02d:%02d %02d:%02d:%02d",
+        $startTime->year,
+        $startTime->mon,
+        $startTime->mday,
+        $startTime->hour,
+        $startTime->min,
+        $startTime->sec
+    );
     my $deleteSh = $SQLDB->{DB}->prepare(
         "DELETE FROM nokia_ipsla_metrics WHERE id IN (
-            SELECT id FROM nokia_ipsla_metrics WHERE time < date('now', '-${dt} minutes') GROUP BY device_name, name, probe, type
+            SELECT id FROM nokia_ipsla_metrics WHERE datetime(time) > ? GROUP BY device_name, name, probe, type
         )"
     );
-    $deleteSh->execute;
+    $deleteSh->execute($dt);
     $deleteSh->finish;
 }
 
