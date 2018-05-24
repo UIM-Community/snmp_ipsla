@@ -45,6 +45,7 @@ my $readXML_open: shared = 0;
 my $updateDevicesAttr: shared = 0;
 my $alarmThreadRunning: shared = 0;
 my $removeDevicesRunning: shared = 0;
+my $STR_RobotName: shared = "";
 my $sess;
 
 # Set array average!
@@ -1013,12 +1014,12 @@ sub QoSHistory {
                 # Throw alarm with message
                 $AlarmQueue->enqueue({
                     type    => $_->{message},
-                    device  => $sql->{device_name},
-                    source  => $sql->{source} || "",
+                    device  => $STR_RobotName,
+                    source  => $sql->{device_name},
                     payload => {
                         threshold => $_->{threshold},
-                        device  => $sql->{device_name},
-                        source  => $sql->{source},
+                        device  => $STR_RobotName,
+                        source  => $sql->{device_name},
                         qos     => $sql->{name},
                         test    => $sql->{probe},
                         unit    => $sql->{type},
@@ -1497,6 +1498,11 @@ startAlarmThread();
 
 # Read Nimbus configuration
 processProbeConfiguration();
+
+my ($RC, $robotname) = nimGetVarStr(NIMV_ROBOTNAME);
+die "Unable to retrieve local Nimsoft robot name!\n" if $RC != NIME_OK;
+$STR_RobotName = $robotname;
+undef $robotname;
 
 # Create the Nimsoft probe!
 $sess = Nimbus::Session->new(PROBE_NAME);
