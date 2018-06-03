@@ -66,6 +66,29 @@ my $SnmpQoSValueParser = {
     }
 };
 
+my $QOSMetrics = {
+    QOS_RESPONSEPATHTEST_TESTRUNRESULT => "9.1.2.1:0",
+    QOS_RESPONSEPATHTEST_MINIMUMRTT => "9.1.2.1:1",
+    QOS_RESPONSEPATHTEST_AVERAGERTT => "9.1.2.1:3",
+    QOS_RESPONSEPATHTEST_MAXIMUMRTT => "9.1.2.1:2",
+    QOS_RESPONSEPATHTEST_MINIMUMTT => "9.1.2.1:4",
+    QOS_RESPONSEPATHTEST_MAXIMUMTT => "9.1.2.1:5",
+    QOS_RESPONSEPATHTEST_JITTERIN => "9.1.2.1:9",
+    QOS_RESPONSEPATHTEST_JITTEROUT => "9.1.2.1:8",
+    QOS_RESPONSEPATHTEST_RTJITTER => "9.1.2.1:19",
+    QOS_RESPONSEPATHTEST_MINIMUMTTIN => "9.1.2.1:6",
+    QOS_RESPONSEPATHTEST_MAXIMUMTTIN => "9.1.2.1:7",
+    QOS_RESPONSEPATHTEST_MINIMUMRESPONSE => "9.1.2.1:10",
+    QOS_RESPONSEPATHTEST_AVERAGERESPONSE => "9.1.2.1:12",
+    QOS_RESPONSEPATHTEST_MAXIMUMRESPONSE => "9.1.2.1:11",
+    QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIMEIN => "9.1.2.1:16",
+    QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIMEIN => "9.1.2.1:18",
+    QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIMEIN => "9.1.2.1:17",
+    QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIME => "9.1.2.1:13",
+    QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIME => "9.1.2.1:15",
+    QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME => "9.1.2.1:14"
+}
+
 # SNMP QoS Schema
 my $SnmpQoSSchema = {
     tmnxOamPingResultsTestRunResult => {
@@ -1011,11 +1034,15 @@ sub QoSHistory {
             foreach(@thresholds) {
                 next unless $_->{threshold} <= $qosValue;
 
+                my $hCI = ciOpenRemoteDevice("9.1.2", $sql->{device_name}, $sql->{source});
+
                 # Throw alarm with message
                 $AlarmQueue->enqueue({
                     type    => $_->{message},
                     device  => $STR_RobotName,
                     source  => $sql->{device_name},
+                    hCI     => $hCI,
+                    metric  => $QOSMetrics{$sql->{name}},
                     payload => {
                         threshold => $_->{threshold},
                         device  => $STR_RobotName,
