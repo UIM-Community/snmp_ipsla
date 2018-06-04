@@ -87,7 +87,7 @@ my $QOSMetrics = {
     QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIME => "9.1.2.1:13",
     QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIME => "9.1.2.1:15",
     QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME => "9.1.2.1:14"
-}
+};
 
 # SNMP QoS Schema
 my $SnmpQoSSchema = {
@@ -326,6 +326,11 @@ sub getMySQLConnector {
     return $dbh;
 }
 
+# @subroutine beginsWith
+sub beginsWith {
+    return substr($_[0], 0, length($_[1])) eq $_[1];
+}
+
 # @subroutine processProbeConfiguration
 # @desc Read and apply default probe Configuration !
 sub processProbeConfiguration {
@@ -350,12 +355,18 @@ sub processProbeConfiguration {
     $DB_Password    = $CFG->{"database"}->{"password"};
 
     # Crypt CFG Credential keys!
-    if(src::utils::isBase64($DB_Password)) {
-        $DB_Password = nimDecryptString($CRED_KEY, $DB_Password);
+    if($DB_Password =~ /^==/) {
+        my $TPassword = substr($DB_Password, 2);
+        if (src::utils::isBase64($TPassword)) {
+            $DB_Password = nimDecryptString($CRED_KEY, $TPassword);
+        }
+        else {
+            exit(0);
+        }
     }
     else {
         my $CFGNapi = cfgOpen(CFG_FILE, 0);
-        my $cValue = nimEncryptString($CRED_KEY, $DB_Password);
+        my $cValue = "==".nimEncryptString($CRED_KEY, $DB_Password);
         cfgKeyWrite($CFGNapi, "/database/", "password", $cValue); 
         cfgSync($CFGNapi);
         cfgClose($CFGNapi);
@@ -1042,7 +1053,7 @@ sub QoSHistory {
                     device  => $STR_RobotName,
                     source  => $sql->{device_name},
                     hCI     => $hCI,
-                    metric  => $QOSMetrics{$sql->{name}},
+                    metric  => $QOSMetrics->{$sql->{name}},
                     payload => {
                         threshold => $_->{threshold},
                         device  => $STR_RobotName,
