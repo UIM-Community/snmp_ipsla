@@ -326,11 +326,6 @@ sub getMySQLConnector {
     return $dbh;
 }
 
-# @subroutine beginsWith
-sub beginsWith {
-    return substr($_[0], 0, length($_[1])) eq $_[1];
-}
-
 # @subroutine processProbeConfiguration
 # @desc Read and apply default probe Configuration !
 sub processProbeConfiguration {
@@ -361,6 +356,7 @@ sub processProbeConfiguration {
             $DB_Password = nimDecryptString($CRED_KEY, $TPassword);
         }
         else {
+            print STDOUT "Failed to detect base64 password for config->database->password \n";
             exit(0);
         }
     }
