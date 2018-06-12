@@ -1021,7 +1021,7 @@ sub QoSHistory {
     die $@ if $@;
 
     my $sth = $SQLDB->{DB}->prepare(
-        "SELECT device_name, name, probe, type, ROUND(AVG(value), 1) as value FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time"
+        "SELECT device_name, name, probe, type, source, ROUND(AVG(value), 1) as value FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time"
     );
     $sth->execute;
     my @rows = ();
