@@ -1088,6 +1088,7 @@ sub QoSHistory {
         $dt->min,
         $dt->sec
     );
+    nimLog(3, "Delete all rows from SQLite db where date < $dt");
     my $deleteSh = $SQLDB->{DB}->prepare(
         "DELETE FROM nokia_ipsla_metrics WHERE id IN (
             SELECT id FROM nokia_ipsla_metrics WHERE datetime(time) > ? GROUP BY device_name, name, probe, type
