@@ -1477,7 +1477,7 @@ sub snmpWorker {
             OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
                 next unless $testNameStr =~ $filter->{nameExpr};
                 my $currTest = $result->{$testOid};
-                my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{name});
+                my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{ip});
                 nimLog(4, "Matching test name => $testNameStr");
                 print STDOUT "Matching test name => $testNameStr\n";
                 
