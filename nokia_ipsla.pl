@@ -510,7 +510,7 @@ sub alarmsThread {
                 $suppkey,
                 $hAlarm->{source}
             );
-            print STDOUT "Generate new (CI) alarm with id $nimid\n";
+            print STDOUT "Generate new (CI) alarm) with id $nimid\n";
             nimLog(3, "Generate new (CI) alarm with id $nimid");
             if($RC != NIME_OK) {
                 my $errorTxt = nimError2Txt($RC);
@@ -733,21 +733,23 @@ sub hydrateDevicesAttributes {
             });
 
             # Generate Reachability QoS
-            my $hCI = ciOpenRemoteDevice("9.1.2", $Device->{name}, $Device->{ip});
+            my $hCI = ciOpenRemoteDevice("9.1.2", "Reachability", $Device->{ip});
             my $QOS = nimQoSCreate("QOS_REACHABILITY", $Device->{name}, $HealthInterval, -1);
             ciBindQoS($hCI, $QOS, "9.1.2:1");
             nimQoSSendValue($QOS, "reachability", $isPollable);
             ciUnBindQoS($QOS);
             nimQoSFree($QOS);
+            ciClose($hCI);
 
             # Update SQLite attributes and trigger an Alarm (clear or not).
             $SQLDB->checkAttributes($result, $Device) if $isPollable == 1;
+            my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $Device->{name}, $Device->{ip});
             $AlarmQueue->enqueue({
                 type    => $isPollable ? "device_responding" : "device_not_responding",
                 device  => $Device->{name},
                 source  => $Device->{ip},
                 dev_id  => $Device->{dev_id},
-                hCI     => $hCI,
+                hCI     => $hCIAlarm,
                 metric  => "9.1.2:1"
             });
         }
