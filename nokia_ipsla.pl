@@ -1366,8 +1366,8 @@ sub snmpWorker {
             print STDERR "Failed to execute gettable on device $device->{name} for table $snmpTable\n";
             $AlarmQueue->enqueue({
                 type    => "gettable_fail",
-                device  => $device->{name},
-                source  => $device->{ip},
+                device  => $STR_RobotName,
+                source  => $device->{name},
                 dev_id  => $device->{dev_id},
                 payload => {
                     table => $snmpTable
