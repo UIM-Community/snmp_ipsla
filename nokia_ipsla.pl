@@ -31,7 +31,7 @@ use src::utils;
 use constant {
     PROBE_NAME => "nokia_ipsla",
     CFG_FILE => "nokia_ipsla.cfg",
-    VERSION => "1.3"
+    VERSION => "1.5.0"
 };
 my $XMLDirectory: shared;
 my ($ProvisioningInterval, $T_CheckInterval, $T_HealthInterval, $HealthThreads, $ProvisioningOnStart, $T_PollingInterval);
