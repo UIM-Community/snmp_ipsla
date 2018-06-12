@@ -1040,29 +1040,40 @@ sub QoSHistory {
 
             my $qosValue    = $sql->{value};
             my @thresholds  = @{ $keys->{$sql->{name}} };
+            my $foundTreshold = 0;
+            my $curr = {
+                threshold => 0,
+                message => ""
+            };
             foreach(@thresholds) {
                 next unless $_->{threshold} <= $qosValue;
+                next unless $_->{threshold} >= $curr->{threshold};
+                $foundTreshold = 1;
+                $curr = $_;
+            }
+            next unless $foundTreshold;
 
-                my $hCI = ciOpenRemoteDevice("9.1.2", $sql->{device_name}, $sql->{source});
+            # Open Remote Device
+            nimLog(3, "Throw alarm $sql->{name} - Device: $sql->{device_name} source: $sql->{source}");
+            my $hCI = ciOpenRemoteDevice("9.1.2", $sql->{device_name}, $sql->{source});
 
-                # Throw alarm with message
-                $AlarmQueue->enqueue({
-                    type    => $_->{message},
+            # Throw alarm with message
+            $AlarmQueue->enqueue({
+                type    => $curr->{message},
+                device  => $STR_RobotName,
+                source  => $sql->{device_name},
+                hCI     => $hCI,
+                metric  => $QOSMetrics->{$sql->{name}},
+                payload => {
+                    threshold => $curr->{threshold},
                     device  => $STR_RobotName,
                     source  => $sql->{device_name},
-                    hCI     => $hCI,
-                    metric  => $QOSMetrics->{$sql->{name}},
-                    payload => {
-                        threshold => $_->{threshold},
-                        device  => $STR_RobotName,
-                        source  => $sql->{device_name},
-                        qos     => $sql->{name},
-                        test    => $sql->{probe},
-                        unit    => $sql->{type},
-                        value   => $qosValue
-                    }
-                });
-            }
+                    qos     => $sql->{name},
+                    test    => $sql->{probe},
+                    unit    => $sql->{type},
+                    value   => $qosValue
+                }
+            });
         }
     }
 
