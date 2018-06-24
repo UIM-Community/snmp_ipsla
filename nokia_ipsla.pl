@@ -336,7 +336,7 @@ sub processProbeConfiguration {
     # Setup section
     my $STR_Login           = $CFG->{"setup"}->{"nim_login"} || "administrator";
     my $STR_Password        = $CFG->{"setup"}->{"nim_password"};
-    my $INT_LogLevel        = defined($CFG->{"setup"}->{"loglevel"}) ? $CFG->{"setup"}->{"loglevel"} : 5;
+    my $INT_LogLevel        = defined($CFG->{"setup"}->{"loglevel"}) ? $CFG->{"setup"}->{"loglevel"} : 3;
     my $INT_LogSize         = $CFG->{"setup"}->{"logsize"} || 1024;
     my $STR_LogFile         = $CFG->{"setup"}->{"logfile"} || "nokia_ipsla.log";
     scriptDieHandler("Configuration <provisioning> section is not mandatory!") if not defined($CFG->{"provisioning"});
@@ -344,7 +344,7 @@ sub processProbeConfiguration {
     # Database Section
     my $DBName      = $CFG->{"database"}->{"database"} || "ca_uim";
     my $DBHost      = $CFG->{"database"}->{"host"};
-    my $DBPort      = $CFG->{"database"}->{"port"};
+    my $DBPort      = $CFG->{"database"}->{"port"} || 3306;
     $DB_ConnectionString = "DBI:mysql:database=$DBName;host=$DBHost;port=$DBPort";
     $DB_User        = $CFG->{"database"}->{"user"};
     $DB_Password    = $CFG->{"database"}->{"password"};
@@ -370,14 +370,14 @@ sub processProbeConfiguration {
 
     # provisioning Section 
     $XMLDirectory           = $CFG->{"provisioning"}->{"xml_dir"} || "./xml";
-    $RemoveDevicesInterval  = $CFG->{"provisioning"}->{"decommission_interval"} || 300;
+    $RemoveDevicesInterval  = $CFG->{"provisioning"}->{"decommission_interval"} || 900;
     $DecommissionSQLTable   = "nokia_ipsla_decommission";
-    $ProvisioningInterval   = $CFG->{"provisioning"}->{"provisioning_interval"} || 30;
-    $PollingInterval        = $CFG->{"provisioning"}->{"polling_snmp_interval"} || 360;
-    $HealthInterval         = $CFG->{"provisioning"}->{"polling_health_interval"} || 30;
+    $ProvisioningInterval   = $CFG->{"provisioning"}->{"provisioning_interval"} || 3600;
+    $PollingInterval        = $CFG->{"provisioning"}->{"polling_snmp_interval"} || 300;
+    $HealthInterval         = $CFG->{"provisioning"}->{"polling_health_interval"} || 1800;
     $HealthThreads          = $CFG->{"provisioning"}->{"polling_health_threads"} || 3;
-    $ProvisioningOnStart    = defined($CFG->{"provisioning"}->{"provisioning_on_start"}) ? $CFG->{"provisioning"}->{"provisioning_on_start"} : 0;
-    $BOOL_DeleteXML         = defined($CFG->{"provisioning"}->{"delete_xml_files"}) ? $CFG->{"provisioning"}->{"delete_xml_files"} : 1;
+    $ProvisioningOnStart    = defined($CFG->{"provisioning"}->{"provisioning_on_start"}) ? $CFG->{"provisioning"}->{"provisioning_on_start"} : 1;
+    $BOOL_DeleteXML         = defined($CFG->{"provisioning"}->{"delete_xml_files"}) ? $CFG->{"provisioning"}->{"delete_xml_files"} : 0;
 
     my @filters = ();
     if(defined($CFG->{"provisioning"}->{"xml_device_filters"})) {
