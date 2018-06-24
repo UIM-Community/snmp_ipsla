@@ -1368,13 +1368,18 @@ sub snmpWorker {
         if($@ || !defined($result)) {
             nimLog(1, "Failed to execute gettable on device $device->{name} for table $snmpTable");
             print STDERR "Failed to execute gettable on device $device->{name} for table $snmpTable\n";
+            my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
             $AlarmQueue->enqueue({
                 type    => "gettable_fail",
                 device  => $STR_RobotName,
-                source  => $device->{name},
-                dev_id  => $device->{dev_id},
+                source  => $Device->{name},
+                dev_id  => $Device->{dev_id},
+                hCI     => $hCIAlarm,
+                metric  => "",
                 payload => {
-                    table => $snmpTable
+                    table => $snmpTable,
+                    device  => $STR_RobotName,
+                    source  => $sql->{device_name}
                 }
             });
             threads->exit();
