@@ -1094,7 +1094,7 @@ sub QoSHistory {
     );
     nimLog(3, "Delete all rows from SQLite db where date < $dt");
     my $deleteSh = $SQLDB->{DB}->prepare(
-        "DELETE FROM nokia_ipsla_metrics WHERE datetime(time) > ?"
+        "DELETE FROM nokia_ipsla_metrics WHERE datetime(time, 'unixepoch') < ?"
     );
     $deleteSh->execute($dt);
     $deleteSh->finish;
