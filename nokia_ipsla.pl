@@ -746,11 +746,15 @@ sub hydrateDevicesAttributes {
             my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $Device->{name}, $Device->{ip});
             $AlarmQueue->enqueue({
                 type    => $isPollable ? "device_responding" : "device_not_responding",
-                device  => $Device->{name},
-                source  => $Device->{ip},
+                device  => $STR_RobotName,
+                source  => $Device->{name},
                 dev_id  => $Device->{dev_id},
                 hCI     => $hCIAlarm,
-                metric  => "9.1.2:1"
+                metric  => "9.1.2:1",
+                payload => {
+                    device  => $STR_RobotName,
+                    source  => $sql->{device_name}
+                }
             });
         }
         print STDOUT "Health Polling thread finished\n";
