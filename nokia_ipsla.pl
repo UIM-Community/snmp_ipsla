@@ -753,7 +753,7 @@ sub hydrateDevicesAttributes {
                 metric  => "9.1.2:1",
                 payload => {
                     device  => $STR_RobotName,
-                    source  => $sql->{device_name}
+                    source  => $Device->{name}
                 }
             });
         }
