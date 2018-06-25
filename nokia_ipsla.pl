@@ -1372,14 +1372,14 @@ sub snmpWorker {
             $AlarmQueue->enqueue({
                 type    => "gettable_fail",
                 device  => $STR_RobotName,
-                source  => $Device->{name},
-                dev_id  => $Device->{dev_id},
+                source  => $device->{name},
+                dev_id  => $device->{dev_id},
                 hCI     => $hCIAlarm,
                 metric  => "",
                 payload => {
                     table => $snmpTable,
                     device  => $STR_RobotName,
-                    source  => $sql->{device_name}
+                    source  => $device->{name}
                 }
             });
             threads->exit();
