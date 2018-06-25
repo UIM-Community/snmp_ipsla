@@ -1548,6 +1548,14 @@ sub snmpWorker {
     nimLog(3, "Finished device $device->{name}");
 }
 
+# Create XML root directory
+{
+    my $directory = "xml";
+    unless(-e $directory or mkdir $directory) {
+        die "Unable to create root directory => $directory\n";
+    }
+}
+
 # Start alarm thread
 startAlarmThread();
 
