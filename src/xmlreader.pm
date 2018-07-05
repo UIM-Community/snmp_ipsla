@@ -2,6 +2,7 @@ package src::xmlreader;
 
 # Perl Core package(s)
 use strict;
+use Data::Dumper;
 
 # Third-party package(s)
 use XML::Simple;
@@ -46,6 +47,8 @@ sub parse {
             }
             eval {
                 # Only if we match Vendor and Model field requirement!
+                print Dumper($_);
+                print "\n";
                 my $dev = src::device->new($_);
                 print STDOUT "Handle XML Device with Label => $dev->{Label}\n";
                 nimLog(3, "Handle XML Device with Label => $dev->{Label}");
