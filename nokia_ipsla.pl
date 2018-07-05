@@ -1372,7 +1372,7 @@ sub snmpWorker {
                 source  => $device->{name},
                 dev_id  => $device->{dev_id},
                 hCI     => $hCIAlarm,
-                metric  => "",
+                metric  => "9.1.2:1",
                 payload => {
                     table => $snmpTable,
                     device  => $STR_RobotName,
