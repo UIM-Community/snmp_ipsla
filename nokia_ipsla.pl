@@ -391,9 +391,6 @@ sub processProbeConfiguration {
     }
     $src::xmlreader::filters = \@filters;
 
-    # Check XML Directory
-    mkdir($XMLDirectory) if -d $XMLDirectory;
-
     # Login to Nimsoft if required
     nimLogin("$STR_Login","$STR_Password") if defined($STR_Login) && defined($STR_Password);
 
