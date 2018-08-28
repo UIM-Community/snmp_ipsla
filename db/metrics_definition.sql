@@ -1,8 +1,8 @@
 INSERT INTO cm_configuration_item_definition (ci_type,ci_parent,ci_description) VALUES ('9.1.2','9.1','Private.Device.Nokia');
 INSERT INTO cm_configuration_item_definition (ci_type,ci_parent,ci_description) VALUES ('9.1.2.1','9.1.2','Private.Device.Nokia.ResponsePathTest');
 
-INSERT INTO cm_configuration_item_metric_definition (met_type, met_description, unit_type, ci_type) VALUES ('9.1.2:0','Reachability','','9.1.2');
-INSERT INTO cm_configuration_item_metric_definition (met_type, met_description, unit_type, ci_type) VALUES ('9.1.2:1','GetTableFail','','9.1.2');
+INSERT INTO cm_configuration_item_metric_definition (met_type, met_description, unit_type, ci_type) VALUES ('9.1.2:0','Reachability','health','9.1.2');
+INSERT INTO cm_configuration_item_metric_definition (met_type, met_description, unit_type, ci_type) VALUES ('9.1.2:1','GetTableFail','health','9.1.2');
 
 INSERT INTO cm_configuration_item_metric_definition (met_type, met_description, unit_type, ci_type) VALUES ('9.1.2.1:0','TestRunResult','health','9.1.2.1');
 INSERT INTO cm_configuration_item_metric_definition (met_type, met_description, unit_type, ci_type) VALUES ('9.1.2.1:1','MinRttWithPrecision','µs','9.1.2.1');
