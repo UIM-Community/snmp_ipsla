@@ -747,7 +747,7 @@ sub hydrateDevicesAttributes {
                 source  => $Device->{name},
                 dev_id  => $Device->{dev_id},
                 hCI     => $hCIAlarm,
-                metric  => "9.1.2:1",
+                metric  => "9.1.2:0",
                 payload => {
                     device  => $STR_RobotName,
                     source  => $Device->{name}
