@@ -999,10 +999,11 @@ sub QoSHistory {
                 my @messages = $CFG->getSections($sec->{$tmnxKey});
                 foreach(@messages) {
                     my $threshold = $sec->{$tmnxKey}->{$_}->{threshold};
+                    my $active = defined($sec->{$tmnxKey}->{$_}->{active}) ? $sec->{$tmnxKey}->{$_}->{active} : "yes";
                     push(@ret, {
                         threshold => $threshold,
                         message => $_
-                    });
+                    }) if $active eq "yes";
                 }
                 $keys->{$tmnxKey} = \@ret;
             }
