@@ -854,7 +854,6 @@ sub removeDevices {
         nimLog(3, "Remove (Decommission) of the Device with UUID => $_->{uuid}");
         $SQLDB->{DB}->prepare('UPDATE nokia_ipsla_device SET is_active=? WHERE uuid=?')->execute(0, $_->{uuid});
         $SQLDB->{DB}->prepare('DELETE FROM nokia_ipsla_device_attr WHERE dev_uuid=?')->execute($_->{uuid});
-        # TODO: DECOM SNMP ? Metrics?
     }
     $SQLDB->{DB}->commit;
     $SQLDB->close();
@@ -1000,8 +999,10 @@ sub QoSHistory {
                 foreach(@messages) {
                     my $threshold = $sec->{$tmnxKey}->{$_}->{threshold};
                     my $active = defined($sec->{$tmnxKey}->{$_}->{active}) ? $sec->{$tmnxKey}->{$_}->{active} : "yes";
+                    my $clear = defined($sec->{$tmnxKey}->{$_}->{clear}) ? $sec->{$tmnxKey}->{$_}->{clear} : "none";
                     push(@ret, {
                         threshold => $threshold,
+                        clear => $clear,
                         message => $_
                     }) if $active eq "yes";
                 }
@@ -1053,7 +1054,9 @@ sub QoSHistory {
                 $foundTreshold = 1;
                 $curr = $_;
             }
-            next unless $foundTreshold;
+
+            next if $foundTreshold == 0 && $curr->{clear} eq "none";
+            my $type = $foundTreshold ? $curr->{message} : $curr->{clear};
 
             # Open Remote Device
             nimLog(3, "Throw alarm $sql->{name} - Device: $sql->{device_name} source: $sql->{source}");
@@ -1061,7 +1064,7 @@ sub QoSHistory {
 
             # Throw alarm with message
             $AlarmQueue->enqueue({
-                type    => $curr->{message},
+                type    => $type,
                 device  => $STR_RobotName,
                 source  => $sql->{device_name},
                 hCI     => $hCI,
