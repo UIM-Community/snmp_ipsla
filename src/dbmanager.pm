@@ -1,3 +1,5 @@
+# This prototype has been created to help separate code logic
+
 package src::dbmanager;
 
 # Perl Core package(s)
@@ -24,34 +26,45 @@ our $encryption = 0;
 # DBManager Prototype Constructor
 sub new {
     my ($class, $dbName, $dbKey) = @_;
+
+    # Setup SQLcipher driver connection to the local SQLite database
     my $DB = DBI->connect("dbi:SQLcipher:uri=file:${dbName}?mode=rwc", "", "", {
         RaiseError => 1
     });
+
+    # Setup encryption key (for SQLCypher)
     $DB->do("pragma key =\"$dbKey\";") if $encryption == 1;
-    return bless({
-        DB => $DB
-    }, ref($class) || $class);
+
+    return bless({ DB => $DB }, ref($class) || $class);
 }
 
-# Upsert XML Object
+# @memberof dbmanager
+# @routine upsertXMLObject
+# @desc Create and update nokia_ipsla_device (& snmp tables) with the XMLReader instance
+# @chainable
 sub upsertXMLObject {
     my ($self, $XML) = @_;
     die "Error: XML (Ref Argument) is not a instance of src::xmlreader" if (ref($XML) || $XML) ne "src::xmlreader";
     
-    # Split and Handle DeviceElements
+    # Retrieve Devices from the XMLReader instance
     my @devices = $XML->devicesList();
     my @devicesToCreate = ();
 
+    # Filtring by non-existing devices
     while (defined(my $device = shift @devices)){
-        my ($rowCount) = $self->{DB}->selectrow_array("SELECT count(*) FROM nokia_ipsla_device WHERE uuid = \"$device->{ElementUUID}\"");
+        my ($rowCount) = $self->{DB}->selectrow_array(
+            "SELECT count(*) FROM nokia_ipsla_device WHERE uuid = \"$device->{ElementUUID}\""
+        );
         push(@devicesToCreate, $device) if $rowCount == 0;
     }
     undef @devices;
 
-    # Create all Devices in the SQLite db
+    # If there is some devices to create
+    # We will create them in the nokia_ipsla_device table
     if(scalar(@devicesToCreate) > 0) {
         $self->{DB}->begin_work;
         while (defined(my $device = shift @devicesToCreate)) {
+            # Generate a new device id!
             my $devId = src::utils::generateDeviceId();
             $self->{DB}->prepare('INSERT INTO nokia_ipsla_device (uuid, snmp_uuid, name, ip, dev_id) VALUES (?, ?, ?, ?, ?)')->execute(
                 $device->{ElementUUID},
@@ -82,7 +95,9 @@ sub upsertXMLObject {
 
         my $tableName = $SNMP_VMatch{$snmpVersion};
         foreach my $snmp (@snmpSecrets) {
-            my ($rowCount) = $self->{DB}->selectrow_array("SELECT count(*) FROM $tableName WHERE uuid = \"$snmp->{SnmpProfileUUID}\"");
+            my ($rowCount) = $self->{DB}->selectrow_array(
+                "SELECT count(*) FROM $tableName WHERE uuid = \"$snmp->{SnmpProfileUUID}\""
+            );
             if($rowCount == 0) {
                 push(@snmpV3ToCreate, $snmp) if $tableName eq "nokia_ipsla_snmp_v3";
                 push(@snmpV1ToCreate, $snmp) if $tableName eq "nokia_ipsla_snmp_v1";
@@ -188,50 +203,54 @@ sub upsertXMLObject {
     return $self;
 }
 
-# checkAttributes attr
+# @memberof dbmanager
+# @routine checkAttributes
+# @desc Check a given device attributes (create or update attributes in the local database).
 sub checkAttributes {
-    my ($self, $hashRef, $device) = @_;
+    my ($self, $snmpSysInformations, $dev_uuid) = @_;
 
     my @toCreate = ();
     my @toUpdate = ();
-    my %Hash = %{ $hashRef };
-    foreach my $key (keys %Hash) {
-        my $value = $Hash{$key};
-        my ($rowCount) = $self->{DB}->selectrow_array("SELECT count(*) FROM nokia_ipsla_device_attr WHERE dev_uuid = \"$device->{dev_uuid}\" AND key = \"$key\"");
+    foreach my $key (keys %{ $snmpSysInformations }) {
+        my ($rowCount) = $self->{DB}->selectrow_array(
+            "SELECT count(*) FROM nokia_ipsla_device_attr WHERE dev_uuid = \"$dev_uuid\" AND key = \"$key\""
+        );
         my $payload = {
             key => $key,
-            value => $value
+            value => $snmpSysInformations->{$key}
         };
         push(@toCreate, $payload) if $rowCount == 0;
         push(@toUpdate, $payload) if $rowCount == 1;
     }
 
-    if(scalar(@toCreate) > 0) {
-        $self->{DB}->begin_work;
-        while (defined(my $attr = shift @toCreate)) {
-            $self->{DB}->prepare('INSERT INTO nokia_ipsla_device_attr (dev_uuid, key, value) VALUES (?, ?, ?)')->execute(
-                $device->{dev_uuid},
-                $attr->{key},
-                $attr->{value}
-            );
-        }
-        $self->{DB}->commit;
+    # Return if nothing to create or update
+    return if scalar(@toCreate) == 0 && scalar(@toUpdate) == 0;
+
+    # Begin transaction!
+    $self->{DB}->begin_work;
+    while (defined(my $attr = shift @toCreate)) {
+        $self->{DB}->prepare('INSERT INTO nokia_ipsla_device_attr (dev_uuid, key, value) VALUES (?, ?, ?)')->execute(
+            $dev_uuid
+            $attr->{key},
+            $attr->{value}
+        );
     }
 
-    if(scalar(@toUpdate) > 0) {
-        $self->{DB}->begin_work;
-        while (defined(my $attr = shift @toUpdate)) {
-            $self->{DB}->prepare('UPDATE nokia_ipsla_device_attr SET value=? WHERE key=? AND dev_uuid=?')->execute(
-                $attr->{value},
-                $attr->{key},
-                $device->{dev_uuid}
-            );
-        }
-        $self->{DB}->commit;
+    while (defined(my $attr = shift @toUpdate)) {
+        $self->{DB}->prepare('UPDATE nokia_ipsla_device_attr SET value=? WHERE key=? AND dev_uuid=?')->execute(
+            $attr->{value},
+            $attr->{key},
+            $dev_uuid
+        );
     }
+
+    # Commit changes and close transaction
+    $self->{DB}->commit;
 }
 
-# update pollable
+# @memberof dbmanager
+# @routine updatePollable
+# @desc Update is_pollable from nokia_ipsla_device table for a given device (with his uuid).
 sub updatePollable {
     my ($self, $uuid, $pollable) = @_;
     $self->{DB}->prepare('UPDATE nokia_ipsla_device SET is_pollable=? WHERE uuid=?')->execute(
@@ -240,7 +259,9 @@ sub updatePollable {
     );
 }
 
-# Get pollable devices!
+# @memberof dbmanager
+# @routine pollable_devices
+# @desc Return pollable devices from nokia_ipsla_device
 sub pollable_devices {
     my ($self) = @_; 
     my $sth = $self->{DB}->prepare('SELECT * FROM v_pollable_devices');
@@ -252,7 +273,9 @@ sub pollable_devices {
     return \@rows;
 }
 
-# Get unpollable devices!
+# @memberof dbmanager
+# @routine unpollable_devices
+# @desc Return unpollable devices from nokia_ipsla_device
 sub unpollable_devices {
     my ($self) = @_; 
     my $sth = $self->{DB}->prepare('SELECT * FROM v_unpollable_devices');
@@ -264,7 +287,9 @@ sub unpollable_devices {
     return \@rows;
 }
 
-# Import SQLite database table definition!
+# @memberof dbmanager
+# @routine import_def
+# @desc Import database definition (create view table etc..)
 sub import_def {
     my ($self, $filePath) = @_;
     open(my $list, '<:encoding(UTF-8)', $filePath) or die "Error: failed to import SQL (Definition) File!\n";
@@ -275,6 +300,10 @@ sub import_def {
     }
     $self->{DB}->{sqlite_allow_multiple_statements} = 1;
     $self->{DB}->do("$SQLQuery");
+
+    # Originaly these views was stored in a local file
+    # But a unknow bug made these request fail with the fs handler (not sure why)
+    # That why there are copy/paste directly here!
     $self->{DB}->do("CREATE VIEW IF NOT EXISTS v_pollable_devices
     AS 
     SELECT DEV1.name, DEV1.ip, DEV1.uuid as dev_uuid, '1' AS snmp_version, V1.uuid, DEV1.dev_id, V1.port, V1.community, '' AS username, '' AS auth_protocol, '' AS auth_key, '' AS priv_protocol, '' AS priv_key FROM nokia_ipsla_snmp_v1 AS V1
@@ -297,10 +326,6 @@ sub import_def {
     JOIN nokia_ipsla_device AS DEV3 ON DEV3.snmp_uuid = V3.uuid WHERE DEV3.is_pollable=0 AND DEV3.is_active=1");
     $self->{DB}->{sqlite_allow_multiple_statements} = 0;
     return $self;
-}
-
-sub close {
-    my ($self) = @_;
 }
 
 1;

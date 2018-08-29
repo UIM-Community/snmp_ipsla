@@ -17,9 +17,13 @@ use Nimbus::API;
 # Parser filters!
 our $filters;
 
+# XMLReader prototype constructor
 sub new {
     my ($class, $filePath, $options) = @_;
-    die "TypeError: filePath argument cant be undefined for constructor src::xmlreader->new(filepath)\n" if !defined($filePath);
+    if (!defined $filePath) {
+        warn "TypeError: filePath argument can't be undefined for constructor src::xmlreader->new(filepath)\n";
+    }
+
     return bless({
         path => $filePath,
         options => $options || {},
@@ -30,9 +34,13 @@ sub new {
     }, ref($class) || $class)
 }
 
-# PARSE The XML File!
+# @memberof xmlreader
+# @routine parse
+# @desc Open, Read and parse the XML file
 sub parse {
     my ($self, $deviceRef) = @_;
+
+    # Open XMLin handle
     my $ref = XMLin($self->{path}, ForceArray => 0);
     my $DefaultOrigin = defined($ref->{DefaultOrigin}) ? $ref->{DefaultOrigin} : undef;
     my @localsFilters = @{ $filters };
@@ -41,15 +49,20 @@ sub parse {
     if(defined($ref->{Devices}) && defined($ref->{Devices}->{Device})) {
         my @devices = ();
         my @originDevices = ref($ref->{Devices}->{Device}) eq "HASH" ? ($ref->{Devices}->{Device}) : @{ $ref->{Devices}->{Device} };
+
         foreach(@originDevices) {
+            # Setup DefaultOrigin is not Origin field defined
             if(!defined($_->{Origin}) && defined($DefaultOrigin)) {
                 $_->{Origin} = $DefaultOrigin;
             }
+
             eval {
-                # Only if we match Vendor and Model field requirement!
+                # Create the device
                 my $dev = src::device->new($_);
                 print STDOUT "Handle XML Device with Label => $dev->{Label}\n";
                 nimLog(3, "Handle XML Device with Label => $dev->{Label}");
+
+                # Check if we match all filters before pushing $dev in @devices
                 filterW: foreach my $filterRef (@localsFilters) {
                     filterK: foreach my $filterKey (keys %{ $filterRef }) {
                         next filterK if !defined($dev->{$filterKey});
@@ -70,6 +83,8 @@ sub parse {
             nimLog(2, $@) if $@;
             print STDERR $@ if $@;
         };
+
+        # Apply retrived devices
         $self->{devices} = \@devices;
     }
 
@@ -79,6 +94,7 @@ sub parse {
         my $longName = "${name}s";
         next if !defined($ref->{$longName});
         next if !defined($ref->{$longName}->{$name});
+
         my @snmp = ();
         my @originSNMP = ref($ref->{$longName}->{$name}) eq "HASH" ? ($ref->{$longName}->{$name}) : @{ $ref->{$longName}->{$name} };
         foreach(@originSNMP) {
@@ -88,21 +104,29 @@ sub parse {
             nimLog(2, $@) if $@;
             print STDERR $@ if $@;
         };
+
+        # Apply retrived SNMP Profiles
         $self->{$name} = \@snmp;
     }
 
     return $self;
 }
 
-# Get devices array (values)
+# @memberof xmlreader
+# @routine devicesList
+# @desc Return the complete devices list as an Array
 sub devicesList {
     my ($self) = @_;
+
     return @{ $self->{devices} };
 }
 
-# Get snmp (v1, v2, v3) array (values) contained in a hashref
+# @memberof xmlreader
+# @routine snmpList
+# @desc Get snmp (v1, v2, v3) array (values) contained in a hashref
 sub snmpList {
     my ($self) = @_;
+
     return {
         v1 => $self->{SnmpV1Profile},
         v2 => $self->{SnmpV2Profile},
@@ -110,9 +134,12 @@ sub snmpList {
     };
 }
 
-# Delete XML File !
+# @memberof xmlreader
+# @routine deleteFile
+# @desc Delete the XML File linked with this XML Instance
 sub deleteFile {
     my ($self) = @_;
+
     unlink($self->{path}) or die "Error: Unable to unlink (delete) file $self->{path}\n";
 }
 

@@ -758,7 +758,7 @@ sub hydrateDevicesAttributes {
             ciClose($hCI);
 
             # Update SQLite attributes and trigger an Alarm (clear or not).
-            $SQLDB->checkAttributes($result, $Device) if $isPollable == 1;
+            $SQLDB->checkAttributes($result, $Device->{dev_uuid}) if $isPollable == 1;
             my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $Device->{name}, $Device->{ip});
             $AlarmQueue->enqueue({
                 type    => $isPollable ? "device_responding" : "device_not_responding",
