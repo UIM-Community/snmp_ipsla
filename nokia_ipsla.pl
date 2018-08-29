@@ -31,7 +31,7 @@ use src::utils;
 use constant {
     PROBE_NAME => "nokia_ipsla",
     CFG_FILE => "nokia_ipsla.cfg",
-    VERSION => "1.5.2"
+    VERSION => "1.6.0"
 };
 my $XMLDirectory: shared;
 my ($ProvisioningInterval, $T_CheckInterval, $T_HealthInterval, $HealthThreads, $ProvisioningOnStart, $T_PollingInterval);
@@ -302,7 +302,7 @@ my $QoSHandlers = Thread::Queue->new();
 $SIG{__DIE__} = \&scriptDieHandler;
 
 # @subroutine scriptDieHandler
-# @desc Routine triggered when the script die
+# @desc Routine triggered when the script have to die
 sub scriptDieHandler {
     my ($err) = @_;
     print STDERR "$err\n";
@@ -311,7 +311,7 @@ sub scriptDieHandler {
 }
 
 # @subroutine getMySQLConnector
-# @desc get MySQLConnector
+# @desc Connect the Perl DBI Driver to the MySQL database
 sub getMySQLConnector {
     nimLog(3, "Initialize MySQL connection: (CS: $DB_ConnectionString)");
     my $dbh = DBI->connect($DB_ConnectionString, $DB_User, $DB_Password);
@@ -326,11 +326,35 @@ sub getMySQLConnector {
     return $dbh;
 }
 
+# @subroutine openLocalDB
+# @desc Open LocalDB (SQLite) properly
+sub openLocalDB {
+    my ($importDef) = @_;
+    my $SQLDB;
+
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+        if ($importDef == 1) {
+            $SQLDB->import_def('./db/database_definition.sql');
+        }
+    };
+    if($@) {
+        print STDERR $@;
+        nimLog(1, $@);
+        return undef;
+    }
+
+    return $SQLDB;
+}
+
 # @subroutine processProbeConfiguration
-# @desc Read and apply default probe Configuration !
+# @desc Read/Parse and apply default probe Configuration !
 sub processProbeConfiguration {
+    # Launch method timer
     my $processProbeConfigurationTime = nimTimerCreate();
     nimTimerStart($processProbeConfigurationTime);
+
+    # Open Configuration File handler
     my $CFG                 = Nimbus::CFG->new(CFG_FILE);
 
     # Setup section
@@ -423,6 +447,7 @@ sub processProbeConfiguration {
     nimTimerStart($T_PollingInterval);
     nimTimerStart($T_RemoveDevicesInterval);
 
+    # Send Nimsoft QoS definitions
     nimQoSSendDefinition(
         "QOS_REACHABILITY",
         "QOS_NETWORK",
@@ -445,12 +470,14 @@ sub processProbeConfiguration {
         );
     }
 
+    # Stdout the time taken to read the configuration!
     nimTimerStop($processProbeConfigurationTime);
     my $executionTimeMs = nimTimerDiff($processProbeConfigurationTime);
     nimTimerFree($processProbeConfigurationTime);
     print STDOUT "processProbeConfiguration() has been executed in ${executionTimeMs}ms\n";
     nimLog(3, "processProbeConfiguration() has been executed in ${executionTimeMs}ms");
 
+    # Start provisioning if $ProvisioningOnStart is equal to 1
     if($ProvisioningOnStart == 1) {
         print STDOUT "Provisioning on start activated: Triggering updateInterval() method!\n";
         nimLog(3, "Provisioning on start activated: Triggering updateInterval() method!");
@@ -459,7 +486,7 @@ sub processProbeConfiguration {
 }
 
 # @subroutine alarmsThread
-# @desc Thread that handle all alarms
+# @desc Thread responsible for creating and publishing new alarm in the Product
 sub alarmsThread {
     $alarmThreadRunning = 1;
     print STDOUT "Run a new thread for alarming!\n";
@@ -487,7 +514,7 @@ sub alarmsThread {
         nimLog(3, "Receiving new alarm of type: $hAlarm->{type}");
         my $type = $Alarm->{$hAlarm->{type}};
 
-        # Parse and Define alarms variables
+        # Parse and Define alarms variables by merging payload into suppkey & message fields
         my $hVariablesRef = defined($hAlarm->{payload}) ? $hAlarm->{payload} : {};
         $hVariablesRef->{host} = $hAlarm->{device};
         my $suppkey = src::utils::parseAlarmVariable($type->{supp_key}, $hVariablesRef);
@@ -579,15 +606,14 @@ sub processXMLFiles {
     $readXML_open = 1;
     print STDOUT "Entering processXMLFiles() !\n";
     nimLog(3, "Entering processXMLFiles() !");
+
+    # Create method timer
     my $processXMLFilesTimer = nimTimerCreate();
     nimTimerStart($processXMLFilesTimer);
-    my $SQLDB;
-    eval {
-        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
-    };
-    if($@) {
-        print STDERR $@;
-        nimLog(1, $@);
+
+    # Open local DB
+    my $SQLDB = openLocalDB(1);
+    if (!defined($SQLDB)) {
         $readXML_open = 0;
         return;
     }
@@ -611,6 +637,8 @@ sub processXMLFiles {
 
     opendir(DIR, $XMLDirectory) or die("Error: Failed to open the root directory /xml\n");
     my @files = sort { (stat $a)[10] <=> (stat $b)[10] } readdir(DIR); # Sort by date (older to recent)
+
+    # Proceed each XML files
     my $processed_files = 0;
     foreach my $file (@files) {
         next unless ($file =~ m/^.*\.xml$/); # Skip non-xml files
@@ -632,7 +660,6 @@ sub processXMLFiles {
     nimTimerFree($processXMLFilesTimer);
     print STDOUT "Successfully processed $processed_files XML file(s) in ${execution_time}ms !\n";
     nimLog(3, "Successfully processed $processed_files XML file(s) in ${execution_time}ms !");
-    $SQLDB->close();
     
     # Run hydrateDevicesAttributes only if at least one XML file has been processed!
     if($processed_files > 0) {
@@ -651,33 +678,29 @@ sub processXMLFiles {
 # @subroutine hydrateDevicesAttributes
 # @desc Update device attributes (Make SNMP request to get system informations).
 sub hydrateDevicesAttributes {
-    if($updateDevicesAttr == 1) {
-        return;
-    }
+    # Return if one hydratation is already running
+    return if $updateDevicesAttr == 1;
     $updateDevicesAttr = 1;
+
     my $hydrateDevicesAttributesTimer = nimTimerCreate();
     nimTimerStart($hydrateDevicesAttributesTimer);
     print STDOUT "Starting hydratation of Devices attributes\n";
     nimLog(3, "Starting hydratation of Devices attributes");
 
-    # Get all pollable devices from SQLite!
-    my $SQLDB;
-    eval {
-        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
-    };
-    if($@) {
-        print STDERR $@;
-        nimLog(1, $@);
+    # Open local DB
+    my $SQLDB = openLocalDB(0);
+    if (!defined($SQLDB)) {
         $updateDevicesAttr = 0;
         return;
     }
+
+    # Get all pollable devices from SQLite!
     my $threadQueue     = Thread::Queue->new();
     my $pollableResponseQueue   = Thread::Queue->new();
     $threadQueue->enqueue($_) for @{ $SQLDB->pollable_devices() };
     $threadQueue->enqueue($_) for @{ $SQLDB->unpollable_devices() };
-    $SQLDB->close();
 
-    # If threadQueue is empty exit method!
+    # If threadQueue is empty, then exit method!
     my $QPending = $threadQueue->pending();
     if($QPending == 0) {
         print STDOUT "No devices to be polled (health_check), Exiting hydrateDevicesAttributes() method!\n";
@@ -698,15 +721,11 @@ sub hydrateDevicesAttributes {
         print STDOUT "Health Polling thread started\n";
         nimLog(3, "Health Polling thread started");
 
-        my $SQLDB;
-        eval {
-            $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
-        };
-        if($@) {
-            print STDERR $@;
-            nimLog(1, $@);
-            return;
-        }
+        # Open local DB
+        my $SQLDB = openLocalDB(0);
+        return if not defined $SQLDB;
+
+        # Create new SNMP Manager!
         my $snmpManager = src::snmpmanager->new();
         while ( defined ( my $Device = $threadQueue->dequeue() ) ) {
             my $result;
@@ -755,7 +774,6 @@ sub hydrateDevicesAttributes {
             });
         }
         print STDOUT "Health Polling thread finished\n";
-        $SQLDB->close();
         nimLog(3, "Health Polling thread finished");
     };
 
@@ -770,13 +788,8 @@ sub hydrateDevicesAttributes {
     $pollableResponseQueue->enqueue(undef);
 
     # Update pollable values!
-    my $SQLDB;
-    eval {
-        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
-    };
-    if($@) {
-        print STDERR $@;
-        nimLog(1, $@);
+    my $SQLDB = openLocalDB(0);
+    if (!defined($SQLDB)) {
         $updateDevicesAttr = 0;
         return;
     }
@@ -827,13 +840,9 @@ sub removeDevices {
     
     my @deviceToRemove = ();
     
-    my $SQLDB;
-    eval {
-        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY)->import_def('./db/database_definition.sql');
-    };
-    if($@) {
-        print STDERR $@;
-        nimLog(1, $@);
+    # Open local DB
+    my $SQLDB = openLocalDB(0);
+    if (!defined($SQLDB)) {
         $removeDevicesRunning = 0;
         return;
     }
@@ -856,7 +865,7 @@ sub removeDevices {
         $SQLDB->{DB}->prepare('DELETE FROM nokia_ipsla_device_attr WHERE dev_uuid=?')->execute($_->{uuid});
     }
     $SQLDB->{DB}->commit;
-    $SQLDB->close();
+    $removeDevicesRunning = 0;
 }
 
 # @subroutine updateInterval
@@ -1234,27 +1243,21 @@ sub polling {
         die $@ if $@;
         $SQLDB->{DB}->begin_work;
         while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
-            eval {
-                $SQLDB->{DB}->prepare(
-                    "INSERT INTO nokia_ipsla_metrics (name, device_name, dev_id, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-                )->execute(
-                    $QoSRow->{name},
-                    $QoSRow->{device},
-                    $QosRow->{dev_id},
-                    $QoSRow->{source},
-                    $QoSRow->{probe},
-                    $QoSRow->{type},
-                    $QoSRow->{value},
-                    $QoSRow->{time}
-                );
-            };
-            nimLog(1, $@) if $@;
+            $SQLDB->{DB}->prepare("INSERT INTO nokia_ipsla_metrics (name, device_name, dev_id, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")->execute(
+                $QoSRow->{name},
+                $QoSRow->{device},
+                $QosRow->{dev_id},
+                $QoSRow->{source},
+                $QoSRow->{probe},
+                $QoSRow->{type},
+                $QoSRow->{value},
+                $QoSRow->{time}
+            );
         }
         eval {
             $SQLDB->{DB}->commit;
         };
         nimLog(0, $@) if $@;
-        $SQLDB->close();
         startAlarmMetricHandlerThread();
     }
 
@@ -1397,6 +1400,7 @@ sub snmpWorker {
         }
 
         my $isHistoryTable = 0;
+
         # Agregate rows for History type
         if($snmpTable eq "tmnxOamPingHistoryTable") {
             $isHistoryTable = 1;
@@ -1566,10 +1570,12 @@ startAlarmThread();
 # Read Nimbus configuration
 processProbeConfiguration();
 
-my ($RC, $robotname) = nimGetVarStr(NIMV_ROBOTNAME);
-die "Unable to retrieve local Nimsoft robot name!\n" if $RC != NIME_OK;
-$STR_RobotName = $robotname;
-undef $robotname;
+# Retrieve local Nimsoft robot name
+{
+    my ($RC, $robotname) = nimGetVarStr(NIMV_ROBOTNAME);
+    scriptDieHandler("Unable to retrieve local Nimsoft robot name!\n") if $RC != NIME_OK;
+    $STR_RobotName = $robotname;
+}
 
 # Create the Nimsoft probe!
 $sess = Nimbus::Session->new(PROBE_NAME);
@@ -1577,6 +1583,7 @@ $sess->setInfo(VERSION, "Nokia_ipsla collector probe");
 
 # Register Nimsoft probe to his agent
 if ( $sess->server (NIMPORT_ANY, \&timeout, \&restart) == NIME_OK ) {
+
     # Register callbacks (by giving global function name).
     nimLog(3, "Adding probe callbacks...");
     $sess->addCallback("get_info");
