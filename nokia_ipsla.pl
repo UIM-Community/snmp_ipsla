@@ -1024,7 +1024,7 @@ sub QoSHistory {
     die $@ if $@;
 
     my $sth = $SQLDB->{DB}->prepare(
-        "SELECT device_name, name, probe, type, source, ROUND(AVG(value), 1) as value FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time"
+        "SELECT device_name, dev_id, name, probe, type, source, ROUND(AVG(value), 1) as value FROM nokia_ipsla_metrics GROUP BY device_name, name, probe, type ORDER BY time"
     );
     $sth->execute;
     my @rows = ();
@@ -1069,6 +1069,7 @@ sub QoSHistory {
                 source  => $sql->{device_name},
                 hCI     => $hCI,
                 metric  => $QOSMetrics->{$sql->{name}},
+                dev_id  => $sql->{dev_id},
                 payload => {
                     threshold => $curr->{threshold},
                     device  => $STR_RobotName,
@@ -1235,10 +1236,11 @@ sub polling {
         while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
             eval {
                 $SQLDB->{DB}->prepare(
-                    "INSERT INTO nokia_ipsla_metrics (name, device_name, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                    "INSERT INTO nokia_ipsla_metrics (name, device_name, dev_id, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
                 )->execute(
                     $QoSRow->{name},
                     $QoSRow->{device},
+                    $QosRow->{dev_id},
                     $QoSRow->{source},
                     $QoSRow->{probe},
                     $QoSRow->{type},
@@ -1536,6 +1538,7 @@ sub snmpWorker {
                         probe   => $testNameStr,
                         device  => $device->{name},
                         source  => $device->{ip},
+                        dev_id  => $device->{dev_id},
                         time    => $QoSTimestamp
                     });
                 }
