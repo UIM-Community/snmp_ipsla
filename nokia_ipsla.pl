@@ -54,6 +54,9 @@ sub mean {
 }
 
 # SNMP QoS Parser routines
+# This table has been created to parse SNMP output by values
+# For example some values are return like this "45 microseconds", so we only want to extract "45"
+# Only two values are supported by the probe (Microseconds and Boolean).
 my $SnmpQoSValueParser = {
     Microseconds => sub {
         my ($strValue) = @_;
@@ -66,6 +69,8 @@ my $SnmpQoSValueParser = {
     }
 };
 
+# Hash table to retrieve metricId by the metric name
+# This table has been created because of the difficulties to retrieve these with the $SnmpQoSSchema table
 my $QOSMetrics = {
     QOS_RESPONSEPATHTEST_TESTRUNRESULT => "9.1.2.1:0",
     QOS_RESPONSEPATHTEST_MINIMUMRTT => "9.1.2.1:1",
@@ -89,7 +94,8 @@ my $QOSMetrics = {
     QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME => "9.1.2.1:14"
 };
 
-# SNMP QoS Schema
+# Complete QoS Schema to publish for the probe!
+# These are published in Nimsoft by the processProbeConfiguration method
 my $SnmpQoSSchema = {
     tmnxOamPingResultsTestRunResult => {
         name => "QOS_RESPONSEPATHTEST_TESTRUNRESULT",
@@ -293,12 +299,12 @@ my $SnmpQoSSchema = {
     }
 };
 
-# Queues
+# Shared Queues. These are used among multiple threads to publish/exchange data
 my $AlarmQueue = Thread::Queue->new();
 my $deviceHandlerQueue = Thread::Queue->new();
 my $QoSHandlers = Thread::Queue->new();
 
-# Unexcepted Script die!
+# Execute the routine scriptDieHandler if the script die for any reasons
 $SIG{__DIE__} = \&scriptDieHandler;
 
 # @subroutine scriptDieHandler
@@ -311,7 +317,7 @@ sub scriptDieHandler {
 }
 
 # @subroutine getMySQLConnector
-# @desc Connect the Perl DBI Driver to the MySQL database
+# @desc Connect the Perl DBI Driver to the MySQL database. It will return undef if the connection failed !
 sub getMySQLConnector {
     nimLog(3, "Initialize MySQL connection: (CS: $DB_ConnectionString)");
     my $dbh = DBI->connect($DB_ConnectionString, $DB_User, $DB_Password);
@@ -323,11 +329,12 @@ sub getMySQLConnector {
         nimLog(3, "Successfully connected to MySQL database!");
         print STDOUT "Successfully connected to MySQL database!\n";
     }
+
     return $dbh;
 }
 
 # @subroutine openLocalDB
-# @desc Open LocalDB (SQLite) properly
+# @desc Open LocalDB (SQLite) properly. Return undef if the connector fail.
 sub openLocalDB {
     my ($importDef) = @_;
     my $SQLDB;
@@ -373,7 +380,7 @@ sub processProbeConfiguration {
     $DB_User        = $CFG->{"database"}->{"user"};
     $DB_Password    = $CFG->{"database"}->{"password"};
 
-    # Crypt CFG Credential keys!
+    # Encrypt/Decrypt CFG Credential keys!
     if($DB_Password =~ /^==/) {
         my $TPassword = substr($DB_Password, 2);
         if (src::utils::isBase64($TPassword)) {
@@ -505,7 +512,7 @@ sub alarmsThread {
     my $localAgent      = Nimbus::PDS->new($getInfoPDS)->asHash();
     my $defaultOrigin   = defined($Alarm->{default_origin}) ? $Alarm->{default_origin} : $localAgent->{origin};
 
-    # Unqueue alarm message!
+    # Wait for new alarm to be publish into the AlarmQueue
     while ( defined ( my $hAlarm = $AlarmQueue->dequeue() ) )  {
         # Verify Alarm Type
         next if not defined($hAlarm->{type});
@@ -971,16 +978,16 @@ sub snmpPollingInterval {
     nimTimerStart($T_PollingInterval);
 }
 
-# @subroutine startAlarmMetricHandlerThread
+# @subroutine startMetricHistoryThread
 # @desc Thread to handle all Metric QoS history
-sub startAlarmMetricHandlerThread {
+sub startMetricHistoryThread {
     print STDOUT "Triggering QoS history metric thread\n";
     nimLog(3, "Triggering QoS history metric thread");
 
     # Create separated thread to handle provisioning mechanism
     threads->create(sub {
         eval {
-            threads->create(\&QoSHistory)->join;
+            threads->create(\&SNMPMetricsHistory)->join;
         };
         if($@) {
             print STDERR $@."\n";
@@ -989,11 +996,11 @@ sub startAlarmMetricHandlerThread {
     })->detach;
 }
 
-# @subroutine QoSHistory
-# @desc Handle QoSHistory
-sub QoSHistory {
+# @subroutine SNMPMetricsHistory
+# @desc Handle alerting on the SNMP metrics history
+sub SNMPMetricsHistory {
 
-    # Retrieve all profiles with threshold
+    # Parse alerting profiles
     my $Profiles = {};
     {
         my $CFG = Nimbus::CFG->new(CFG_FILE);
@@ -1057,6 +1064,8 @@ sub QoSHistory {
                 threshold => 0,
                 message => ""
             };
+
+            # Check for the lowest matched treshold of the list
             foreach(@thresholds) {
                 next unless $_->{threshold} <= $qosValue;
                 next unless $_->{threshold} >= $curr->{threshold};
@@ -1064,6 +1073,7 @@ sub QoSHistory {
                 $curr = $_;
             }
 
+            # Check if we have a clear alarm (if not, just go the next iteration)
             next if $foundTreshold == 0 && $curr->{clear} eq "none";
             my $type = $foundTreshold ? $curr->{message} : $curr->{clear};
 
@@ -1258,7 +1268,7 @@ sub polling {
             $SQLDB->{DB}->commit;
         };
         nimLog(0, $@) if $@;
-        startAlarmMetricHandlerThread();
+        startMetricHistoryThread();
     }
 
     my $timeline = threads->create(sub {
