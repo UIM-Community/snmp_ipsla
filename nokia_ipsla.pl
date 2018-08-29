@@ -627,15 +627,20 @@ sub processXMLFiles {
 
     # Connect to MySQL (optionaly)
     my $devicesUUID = {};
-    my $dbh = getMySQLConnector();
-    if(defined($dbh)) {
-        my $sth = $dbh->prepare("SELECT device FROM $DecommissionSQLTable");
-        $sth->execute();
-        while(my $row = $sth->fetchrow_hashref) {
-            $devicesUUID->{$row->{device}} = 0;
+    eval {
+        my $dbh = getMySQLConnector();
+        if(defined($dbh)) {
+            my $sth = $dbh->prepare("SELECT device FROM $DecommissionSQLTable");
+            $sth->execute();
+            while(my $row = $sth->fetchrow_hashref) {
+                $devicesUUID->{$row->{device}} = 0;
+            }
         }
+    };
+    if ($@) {
+        print STDERR $@;
+        nimLog(1, $@);
     }
-    undef $dbh;
 
     print STDOUT "Start XML File(s) processing !\n";
     nimLog(3, "Start XML File(s) processing !");
@@ -805,7 +810,6 @@ sub hydrateDevicesAttributes {
         $SQLDB->updatePollable($Device->{uuid}, $Device->{pollable});
     }
     $SQLDB->{DB}->commit;
-    $SQLDB->close();
 
     nimTimerStop($hydrateDevicesAttributesTimer);
     my $execution_time = nimTimerDiff($hydrateDevicesAttributesTimer);
@@ -1230,67 +1234,79 @@ sub timeout {
 }
 
 # @callback restart
-# @desc Run when the probe is restarted!
+# @desc Triggered when the probe callback "restart" is called.
 sub restart {
     print STDOUT "Probe restart callback triggered... No effects (please deactivate/re-activate)\n";
     nimLog(3,"Probe restart callback triggered... No effects (please deactivate/re-activate)");
 }
 
 # @subroutine polling
-# @desc SNMP Polling phase
+# @desc SNMP Polling cycle thread
 sub polling {
     print STDOUT "SNMP Polling triggered!\n";
     nimLog(3, "SNMP Polling triggered!");
 
-    # Manage QoS
+    # Insert all SNMP QoS retrieved by the previous polling cycle!
     if($QoSHandlers->pending() > 0) {
-        print "Insert all recolted QoS in the SQLite DB!\n";
-        nimLog(2, "Insert all recolted QoS in the SQLite DB!");
+        print "Insert all recolted SNMP Polling QoS in the SQLite DB!\n";
+        nimLog(2, "Insert all recolted SNMP Polling  QoS in the SQLite DB!");
         my $SQLDB;
         eval {
             $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
         };
         die $@ if $@;
-        $SQLDB->{DB}->begin_work;
-        while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
-            $SQLDB->{DB}->prepare("INSERT INTO nokia_ipsla_metrics (name, device_name, dev_id, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")->execute(
-                $QoSRow->{name},
-                $QoSRow->{device},
-                $QosRow->{dev_id},
-                $QoSRow->{source},
-                $QoSRow->{probe},
-                $QoSRow->{type},
-                $QoSRow->{value},
-                $QoSRow->{time}
-            );
-        }
         eval {
+            $SQLDB->{DB}->begin_work;
+            while ( defined(my $QoSRow = $QoSHandlers->dequeue_nb()) ) {
+                $SQLDB->{DB}->prepare("INSERT INTO nokia_ipsla_metrics (name, device_name, dev_id, source, probe, type, value, time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")->execute(
+                    $QoSRow->{name},
+                    $QoSRow->{device},
+                    $QoSRow->{dev_id},
+                    $QoSRow->{source},
+                    $QoSRow->{probe},
+                    $QoSRow->{type},
+                    $QoSRow->{value},
+                    $QoSRow->{time}
+                );
+            }
             $SQLDB->{DB}->commit;
         };
         nimLog(0, $@) if $@;
+
+        # Start the thread responsible of triggering new history QoS Alarms
         startMetricHistoryThread();
     }
 
+    # Create a timeline thread
+    # This thread will be responsible to time the creation of new SNMP Worker threads
     my $timeline = threads->create(sub {
-        # Get devices
+        
+        # Open local DB
         my $SQLDB;
         eval {
             $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
         };
         die $@ if $@;
-        my @devices = @{ $SQLDB->pollable_devices() };
-        $SQLDB->close();
 
-        # Establish timeline
+        # Retrieve only pollable devices
+        my @devices = @{ $SQLDB->pollable_devices() };
+
+        # Establish the complete time in Milliseconds
         my $totalTimeMs = (($PollingInterval / 100) * 90) * 1000;
-        my $totalEquipments = scalar @devices;
-        if ($totalEquipments == 0) {
+
+        # Get the total count of devices to poll
+        my $deviceCount = scalar @devices;
+
+        # Exit if there is no device to poll
+        if ($deviceCount == 0) {
             print "0 SNMP devices to be polled. Exiting polling phase!\n";
             nimLog(2, "0 SNMP devices to be polled. Exiting polling phase!");
-            $deviceHandlerQueue->enqueue(undef);
+            $deviceHandlerQueue->enqueue(undef); # close the queue!
             return;
         }
-        my $poolPollingInterval = floor($totalTimeMs / $totalEquipments) / 1000;
+
+        # Interval between each SNMP Worker
+        my $poolPollingInterval = floor($totalTimeMs / $deviceCount) / 1000;
 
         print "SNMP Pool Polling limitation (ms) => $totalTimeMs ms\n";
         nimLog(3, "SNMP Pool Polling limitation (ms) => $totalTimeMs ms");
@@ -1298,10 +1314,10 @@ sub polling {
         nimLog(3, "SNMP Pool Polling interval => $poolPollingInterval s");
 
         my $start = time();
-        while($totalEquipments > 0) {
+        while($deviceCount > 0) {
             $deviceHandlerQueue->enqueue(pop(@devices));
-            $totalEquipments--;
-            if($totalEquipments != 0) {
+            $deviceCount--;
+            if($deviceCount != 0) {
                 select(undef, undef, undef, $poolPollingInterval);
             }
         }
@@ -1313,6 +1329,7 @@ sub polling {
         return;
     });
 
+    # This thread will be responsible of creating new SNMP Worker
     threads->create(sub {
         print STDOUT "SNMP Pool-polling thread started!\n";
         nimLog(3, "SNMP Pool-polling thread started!");
@@ -1341,32 +1358,37 @@ sub polling {
             $templates->{$tableName} = \@ProbesFilters;
         }
 
-        # Create context variable!
+        # Create Worker context variables
         my $context = {
             startTime => $startTime,
             templates => $templates
         };
 
+        # Wait for new Worker
         while ( defined(my $device = $deviceHandlerQueue->dequeue()) ) {
+            # Create new Worker with Context & Device
             threads->create(\&snmpWorker, $context, $device)->detach();
         }
+
         print STDOUT "SNMP Pool-polling finished!\n";
         nimLog(3, "SNMP Pool-polling finished!");
     })->detach();
+
+    # Join timeline thread
     $timeline->join();
 
     return;
 }
 
 # @subroutine snmpWorker
-# @desc SNMP (Polling) Worker
+# @desc SNMP (Polling) Worker.
 sub snmpWorker {
     my ($context, $device) = @_;
     my $pollTime = localtime(time);
     print STDOUT "Handle device $device->{name}\n";
     nimLog(3, "Handle device $device->{name}");
 
-    # Get SNMP Session
+    # Open SNMP Session
     my $snmpSession = src::snmpmanager->new()->initSnmpSession($device);
     if(!defined($snmpSession)) {
         nimLog(1, "Exiting snmpWorker() thread for device $device->{name}");
