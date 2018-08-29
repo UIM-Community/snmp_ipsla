@@ -230,7 +230,7 @@ sub checkAttributes {
     $self->{DB}->begin_work;
     while (defined(my $attr = shift @toCreate)) {
         $self->{DB}->prepare('INSERT INTO nokia_ipsla_device_attr (dev_uuid, key, value) VALUES (?, ?, ?)')->execute(
-            $dev_uuid
+            $dev_uuid,
             $attr->{key},
             $attr->{value}
         );
