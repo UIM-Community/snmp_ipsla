@@ -2,6 +2,7 @@ package src::xmlreader;
 
 # Perl Core package(s)
 use strict;
+use warnings;
 use Data::Dumper;
 
 # Third-party package(s)
@@ -16,6 +17,11 @@ use Nimbus::API;
 
 # Parser filters!
 our $filters;
+
+# Check if an XML field is defined or not
+sub isNotDefined {
+    return !defined @_[0] || ref @_[0] eq "HASH" || @_[0] eq "" ? 1 : 0;
+}
 
 # XMLReader prototype constructor
 sub new {
@@ -56,32 +62,31 @@ sub parse {
                 $_->{Origin} = $DefaultOrigin;
             }
 
-            eval {
-                # Create the device
-                my $dev = src::device->new($_);
-                print STDOUT "Handle XML Device with Label => $dev->{Label}\n";
-                nimLog(3, "Handle XML Device with Label => $dev->{Label}");
+            # Create the device
+            my $dev = src::device->new($_);
+            next if isNotDefined($dev->{PrimaryIPV4Address});
+            next if isNotDefined($dev->{SnmpProfileUUID});
+            next if isNotDefined($dev->{Label});
+            print STDOUT "Handle XML Device with Label => $dev->{Label}\n";
+            nimLog(3, "Handle XML Device with Label => $dev->{Label}");
 
-                # Check if we match all filters before pushing $dev in @devices
-                filterW: foreach my $filterRef (@localsFilters) {
-                    filterK: foreach my $filterKey (keys %{ $filterRef }) {
-                        next filterK if !defined($dev->{$filterKey});
-                        next filterK unless($dev->{$filterKey} =~ $filterRef->{$filterKey});
-                        if(defined($deviceRef->{$dev->{Label}})) {
-                            print STDOUT "Device with Label $dev->{Label} is not active anymore\n";
-                            nimLog(3, "Device with Label $dev->{Label} is not active anymore");
-                        }
-                        else {
-                            print STDOUT "Device $dev->{Label} is matching filtering rules...\n";
-                            nimLog(3, "Device $dev->{Label} is matching filtering rules...");
-                            push(@devices, $dev);
-                        }
-                        last filterW;
+            # Check if we match all filters before pushing $dev in @devices
+            filterW: foreach my $filterRef (@localsFilters) {
+                filterK: foreach my $filterKey (keys %{ $filterRef }) {
+                    next filterK if !defined($dev->{$filterKey});
+                    next filterK unless($dev->{$filterKey} =~ $filterRef->{$filterKey});
+                    if(defined($deviceRef->{$dev->{Label}})) {
+                        print STDOUT "Device with Label $dev->{Label} is not active anymore\n";
+                        nimLog(3, "Device with Label $dev->{Label} is not active anymore");
                     }
+                    else {
+                        print STDOUT "Device $dev->{Label} is matching filtering rules...\n";
+                        nimLog(3, "Device $dev->{Label} is matching filtering rules...");
+                        push(@devices, $dev);
+                    }
+                    last filterW;
                 }
-            };
-            nimLog(2, $@) if $@;
-            print STDERR $@ if $@;
+            }
         };
 
         # Apply retrived devices
@@ -98,11 +103,8 @@ sub parse {
         my @snmp = ();
         my @originSNMP = ref($ref->{$longName}->{$name}) eq "HASH" ? ($ref->{$longName}->{$name}) : @{ $ref->{$longName}->{$name} };
         foreach(@originSNMP) {
-            eval {
-                push(@snmp, src::snmp->new($_));
-            };
-            nimLog(2, $@) if $@;
-            print STDERR $@ if $@;
+            my $snmp = src::snmp->new($_);
+            push(@snmp, $snmp) if not isNotDefined($snmp->{SnmpProfileUUID});
         };
 
         # Apply retrived SNMP Profiles
