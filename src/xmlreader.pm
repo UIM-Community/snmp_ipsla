@@ -2,7 +2,6 @@ package src::xmlreader;
 
 # Perl Core package(s)
 use strict;
-use warnings;
 use Data::Dumper;
 
 # Third-party package(s)
