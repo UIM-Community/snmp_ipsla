@@ -745,12 +745,11 @@ sub hydrateDevicesAttributes {
                 $result = $snmpManager->snmpSysInformations($Device);
             };
             if($@) {
+                nimLog(1, $@);
                 print STDERR $@;
                 next;
             }
-            my $isPollable      = ref($result) eq "HASH" ? 1 : 0;
-            print STDOUT "sysObjectID => $result->{sysObjectID}\n";
-
+            my $isPollable      = !defined($result) || ref($result) eq "HASH" ? 1 : 0;
             my $isPollableStr   = $isPollable ? "true" : "false";
             print STDOUT "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr\n";
             nimLog(2, "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr");
