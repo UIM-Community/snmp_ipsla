@@ -1087,15 +1087,15 @@ sub SNMPMetricsHistory {
             # Throw alarm with message
             $AlarmQueue->enqueue({
                 type    => $type,
-                device  => $STR_RobotName,
-                source  => $sql->{device_name},
+                device  => $sql->{device_name},
+                source  => $sql->{source},
                 hCI     => $hCI,
                 metric  => $QOSMetrics->{$sql->{name}},
                 dev_id  => $sql->{dev_id},
                 payload => {
                     threshold => $curr->{threshold},
-                    device  => $STR_RobotName,
-                    source  => $sql->{device_name},
+                    device  => $sql->{device_name},
+                    source  => $sql->{source},
                     qos     => $sql->{name},
                     test    => $sql->{probe},
                     unit    => $sql->{type},
