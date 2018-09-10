@@ -1469,18 +1469,17 @@ sub snmpWorker {
                 my @tests = @{ $testByName->{$testName} };
                 foreach(@tests) {
                     my $id  = $_->{id};
-                    my $seq = $_->{seq};
 
                     if (not defined($agregateResult->{$testName}->{$id})) {
                         $agregateResult->{$testName}->{$id} = [];
                     }
-                    $agregateResult->{$testName}->{$id}[$seq - 1] = {
+                    push(@{ $agregateResult->{$testName}->{$id} }, {
                         completeName => $_->{completeName},
                         tmnxOamPingHistoryInOneWayTime => $_->{tmnxOamPingHistoryInOneWayTime},
                         tmnxOamPingHistoryResponse => $_->{tmnxOamPingHistoryResponse},
                         tmnxOamPingHistoryOneWayTime => $_->{tmnxOamPingHistoryOneWayTime},
                         tmnxOamPingHistoryTime => $_->{tmnxOamPingHistoryTime}
-                    };
+                    });
                 }
             }
             my $finalResult = {};

@@ -168,7 +168,15 @@ sub ascii_oid($$) {
     my ($oid, $mode) = @_;
     my $temptmp='';
     my @comb;
-    foreach my $c (split(/\./, $oid)) {
+    my @splitOids = split(/\./, $oid);
+    my $oidLength = scalar @splitOids;
+    my $i = 0;
+    foreach my $c (@splitOids) {
+        if ($i == $oidLength - 1) {
+            push @comb, $temptmp if $temptmp ne '';
+            push (@comb, int($c));
+            last;
+        }
         if ($c > 31 && $c < 127) {
             $temptmp .= chr($c);
         }
@@ -177,10 +185,10 @@ sub ascii_oid($$) {
             push @comb, int($c) if $mode==1;
             $temptmp = '';
         }
+        $i++;
     }
 
     # Final push if something is not pushed already
-    push @comb, $temptmp if $temptmp ne '';
     $temptmp = join(".", @comb);
 
     # clean generated ASCII text
