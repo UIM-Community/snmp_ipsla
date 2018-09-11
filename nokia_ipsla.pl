@@ -1081,21 +1081,21 @@ sub SNMPMetricsHistory {
             my $type = $foundTreshold ? $curr->{message} : $curr->{clear};
 
             # Open Remote Device
-            nimLog(3, "Throw alarm $sql->{name} - Device: $sql->{device_name} source: $sql->{source}");
+            nimLog(3, "Throw alarm $sql->{name} - Robot: $STR_RobotName, Device: $sql->{device_name} source: $sql->{source}");
             my $hCI = ciOpenRemoteDevice("9.1.2", $sql->{device_name}, $sql->{source});
 
             # Throw alarm with message
             $AlarmQueue->enqueue({
                 type    => $type,
-                device  => $sql->{device_name},
-                source  => $sql->{source},
+                device  => $STR_RobotName,
+                source  => $sql->{device_name},
                 hCI     => $hCI,
                 metric  => $QOSMetrics->{$sql->{name}},
                 dev_id  => $sql->{dev_id},
                 payload => {
                     threshold => $curr->{threshold},
-                    device  => $sql->{device_name},
-                    source  => $sql->{source},
+                    device  => $STR_RobotName,
+                    source  => $sql->{device_name},
                     qos     => $sql->{name},
                     test    => $sql->{probe},
                     unit    => $sql->{type},
