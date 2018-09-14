@@ -66,6 +66,15 @@ my $SnmpQoSValueParser = {
     State => sub {
         my ($strValue) = @_;
         return $strValue eq "success";
+    },
+    Numeric => sub {
+        my ($strValue) = @_;
+        return $strValue;
+    },
+    Probes => sub {
+        my ($strValue) = @_;
+        my @matches = $strValue =~ /(.*)\sprobes/g;
+        return $matches[0];
     }
 };
 
