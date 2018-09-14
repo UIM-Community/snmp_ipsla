@@ -67,13 +67,9 @@ my $SnmpQoSValueParser = {
         my ($strValue) = @_;
         return $strValue eq "success";
     },
-    Numeric => sub {
+    Count => sub {
         my ($strValue) = @_;
-        return $strValue;
-    },
-    Probes => sub {
-        my ($strValue) = @_;
-        my @matches = $strValue =~ /(.*)\sprobes/g;
+        my @matches = $strValue =~ /^([0-9]+)/g;
         return $matches[0];
     }
 };
@@ -93,7 +89,9 @@ my $QOSMetrics = {
     QOS_RESPONSEPATHTEST_RTJITTER => "9.1.2.1:12",
     QOS_RESPONSEPATHTEST_MINIMUMTTIN => "9.1.2.1:6",
     QOS_RESPONSEPATHTEST_AVERAGETTIN => "9.1.2.1:11",
-    QOS_RESPONSEPATHTEST_MAXIMUMTTIN => "9.1.2.1:7"
+    QOS_RESPONSEPATHTEST_MAXIMUMTTIN => "9.1.2.1:7",
+    QOS_RESPONSEPATHTEST_PROBEFAILURES => "9.1.2.1:13",
+    QOS_RESPONSEPATHTEST_SENTPROBES => "9.1.2.1:14"
 };
 
 # Complete QoS Schema to publish for the probe!
@@ -228,6 +226,26 @@ my $SnmpQoSSchema = {
         flags => 0,
         ci_type => "9.1.2.1",
         metric_name => "9.1.2.1:7"
+    },
+    tmnxOamPingResultsProbeFailures => {
+        name => "QOS_RESPONSEPATHTEST_PROBEFAILURES",
+        unit => "Count",
+        short => "count",
+        group => "QOS_NETWORK",
+        description => "Probe failures",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:13"
+    },
+    tmnxOamPingResultsSentProbes => {
+        name => "QOS_RESPONSEPATHTEST_SENTPROBES",
+        unit => "Count",
+        short => "count",
+        group => "QOS_NETWORK",
+        description => "Probes sent",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:14"
     }
 };
 
