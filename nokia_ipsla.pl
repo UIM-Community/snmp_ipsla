@@ -31,7 +31,7 @@ use src::utils;
 use constant {
     PROBE_NAME => "nokia_ipsla",
     CFG_FILE => "nokia_ipsla.cfg",
-    VERSION => "1.6.1"
+    VERSION => "1.7.0"
 };
 my $XMLDirectory: shared;
 my ($ProvisioningInterval, $T_CheckInterval, $T_HealthInterval, $HealthThreads, $ProvisioningOnStart, $T_PollingInterval);
@@ -77,21 +77,14 @@ my $QOSMetrics = {
     QOS_RESPONSEPATHTEST_AVERAGERTT => "9.1.2.1:3",
     QOS_RESPONSEPATHTEST_MAXIMUMRTT => "9.1.2.1:2",
     QOS_RESPONSEPATHTEST_MINIMUMTT => "9.1.2.1:4",
+    QOS_RESPONSEPATHTEST_AVERAGETT => "9.1.2.1:10",
     QOS_RESPONSEPATHTEST_MAXIMUMTT => "9.1.2.1:5",
     QOS_RESPONSEPATHTEST_JITTERIN => "9.1.2.1:9",
     QOS_RESPONSEPATHTEST_JITTEROUT => "9.1.2.1:8",
-    QOS_RESPONSEPATHTEST_RTJITTER => "9.1.2.1:19",
+    QOS_RESPONSEPATHTEST_RTJITTER => "9.1.2.1:12",
     QOS_RESPONSEPATHTEST_MINIMUMTTIN => "9.1.2.1:6",
-    QOS_RESPONSEPATHTEST_MAXIMUMTTIN => "9.1.2.1:7",
-    QOS_RESPONSEPATHTEST_MINIMUMRESPONSE => "9.1.2.1:10",
-    QOS_RESPONSEPATHTEST_AVERAGERESPONSE => "9.1.2.1:12",
-    QOS_RESPONSEPATHTEST_MAXIMUMRESPONSE => "9.1.2.1:11",
-    QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIMEIN => "9.1.2.1:16",
-    QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIMEIN => "9.1.2.1:18",
-    QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIMEIN => "9.1.2.1:17",
-    QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIME => "9.1.2.1:13",
-    QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIME => "9.1.2.1:15",
-    QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME => "9.1.2.1:14"
+    QOS_RESPONSEPATHTEST_AVERAGETTIN => "9.1.2.1:11",
+    QOS_RESPONSEPATHTEST_MAXIMUMTTIN => "9.1.2.1:7"
 };
 
 # Complete QoS Schema to publish for the probe!
@@ -147,6 +140,16 @@ my $SnmpQoSSchema = {
         ci_type => "9.1.2.1",
         metric_name => "9.1.2.1:4"
     },
+    tmnxOamPingResultsAverageTt => {
+        name => "QOS_RESPONSEPATHTEST_AVERAGETT",
+        unit => "Microseconds",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "Average Trip Time",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:10"
+    },
     tmnxOamPingResultsMaxTt => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMTT",
         unit => "Microseconds",
@@ -185,7 +188,7 @@ my $SnmpQoSSchema = {
         description => "Round Trip Jitter",
         flags => 0,
         ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:19"
+        metric_name => "9.1.2.1:12"
     },
     tmnxOamPingResultsMinInTt => {
         name => "QOS_RESPONSEPATHTEST_MINIMUMTTIN",
@@ -197,6 +200,16 @@ my $SnmpQoSSchema = {
         ci_type => "9.1.2.1",
         metric_name => "9.1.2.1:6"
     },
+    tmnxOamPingResultsAverageInTt => {
+        name => "QOS_RESPONSEPATHTEST_AVERAGETTIN",
+        unit => "Microseconds",
+        short => "us",
+        group => "QOS_NETWORK",
+        description => "Average Trip Time IN",
+        flags => 0,
+        ci_type => "9.1.2.1",
+        metric_name => "9.1.2.1:11"
+    },
     tmnxOamPingResultsMaxInTt => {
         name => "QOS_RESPONSEPATHTEST_MAXIMUMTTIN",
         unit => "Microseconds",
@@ -206,96 +219,6 @@ my $SnmpQoSSchema = {
         flags => 0,
         ci_type => "9.1.2.1",
         metric_name => "9.1.2.1:7"
-    },
-    tmnxOamPingHistoryResponseMin => {
-        name => "QOS_RESPONSEPATHTEST_MINIMUMRESPONSE",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Minimum Response",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:10"
-    },
-    tmnxOamPingHistoryResponseAvg => {
-        name => "QOS_RESPONSEPATHTEST_AVERAGERESPONSE",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Average Response",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:12"
-    },
-    tmnxOamPingHistoryResponseMax => {
-        name => "QOS_RESPONSEPATHTEST_MAXIMUMRESPONSE",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Maxium Response",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:11"
-    },
-    tmnxOamPingHistoryInOneWayTimeMin => {
-        name => "QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIMEIN",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Minimum One Way Time IN",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:16"
-    },
-    tmnxOamPingHistoryInOneWayTimeAvg => {
-        name => "QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIMEIN",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Average One Way Time IN",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:18"
-    },
-    tmnxOamPingHistoryInOneWayTimeMax => {
-        name => "QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIMEIN",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Maximum One Way Time IN",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:17"
-    },
-    tmnxOamPingHistoryOneWayTimeMin => {
-        name => "QOS_RESPONSEPATHTEST_MINIMUMONEWAYTIME",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Minimum One Way Time",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:13"
-    },
-    tmnxOamPingHistoryOneWayTimeAvg => {
-        name => "QOS_RESPONSEPATHTEST_AVERAGEONEWAYTIME",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Average One Way Time",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:15"
-    },
-    tmnxOamPingHistoryOneWayTimeMax => {
-        name => "QOS_RESPONSEPATHTEST_MAXIMUMONEWAYTIME",
-        unit => "Microseconds",
-        short => "us",
-        group => "QOS_NETWORK",
-        description => "Maximum One Way Time",
-        flags => 0,
-        ci_type => "9.1.2.1",
-        metric_name => "9.1.2.1:14"
     }
 };
 
@@ -730,8 +653,9 @@ sub hydrateDevicesAttributes {
     }
 
     my $pollingThread = sub {
-        print STDOUT "Health Polling thread started\n";
-        nimLog(3, "Health Polling thread started");
+        my $tid = threads->tid();
+        print STDOUT "[$tid] Health Polling thread started\n";
+        nimLog(3, "[$tid] Health Polling thread started");
 
         # Open local DB
         my $SQLDB = openLocalDB(0);
@@ -745,14 +669,14 @@ sub hydrateDevicesAttributes {
                 $result = $snmpManager->snmpSysInformations($Device);
             };
             if($@) {
-                nimLog(1, $@);
-                print STDERR $@;
+                nimLog(1, "[$tid][$Device->{name}] $@");
+                print STDERR "[$tid][$Device->{name}] $@\n";
                 next;
             }
             my $isPollable      = !defined($result) || ref($result) eq "HASH" ? 1 : 0;
             my $isPollableStr   = $isPollable ? "true" : "false";
-            print STDOUT "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr\n";
-            nimLog(2, "Device $Device->{name} (uuid: $Device->{dev_uuid}) has been detected has pollable: $isPollableStr");
+            print STDOUT "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr\n";
+            nimLog(2, "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr");
 
             $pollableResponseQueue->enqueue({
                 uuid        => $Device->{dev_uuid},
@@ -784,8 +708,9 @@ sub hydrateDevicesAttributes {
                 }
             });
         }
-        print STDOUT "Health Polling thread finished\n";
-        nimLog(3, "Health Polling thread finished");
+
+        print STDOUT "[$tid] Health Polling thread finished\n";
+        nimLog(3, "[$tid] Health Polling thread finished");
     };
 
     # Wait for polling threads
@@ -1384,206 +1309,115 @@ sub polling {
 sub snmpWorker {
     my ($context, $device) = @_;
     my $pollTime = localtime(time);
-    print STDOUT "Handle device $device->{name}\n";
-    nimLog(3, "Handle device $device->{name}");
+    my $tid = threads->tid();
+    print STDOUT "[$tid][$device->{name}] Start worker!\n";
+    nimLog(3, "[$tid][$device->{name}] Start worker!");
 
     # Open SNMP Session
     my $snmpSession = src::snmpmanager->new()->initSnmpSession($device);
     if(!defined($snmpSession)) {
-        nimLog(1, "Exiting snmpWorker() thread for device $device->{name}");
-        return;
+        nimLog(1, "[$tid][$device->{name}] Unable to open snmp session. Exiting worker!");
+        print STDERR "[$tid][$device->{name}] Unable to open snmp session. Exiting worker!\n";
+        return threads->exit();
     }
 
-    # Foreach all templates tests!
-    foreach my $snmpTable (keys %{ $context->{templates} }) {
-        my $result;
-        my $getTableExecutionTime = nimTimerCreate();
-        nimTimerStart($getTableExecutionTime);
-        eval {
-            $result     = $snmpSession->gettable($snmpTable, nogetbulk => 1);
-        };
-        if($@ || !defined($result)) {
-            nimLog(1, "Failed to execute gettable on device $device->{name} for table $snmpTable");
-            print STDERR "Failed to execute gettable on device $device->{name} for table $snmpTable\n";
-            my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
-            $AlarmQueue->enqueue({
-                type    => "gettable_fail",
+    my $snmpTable = "tmnxOamPingResultsTable";
+    my $getTableExecutionTime = nimTimerCreate();
+    nimTimerStart($getTableExecutionTime);
+    my $result;
+    eval {
+        $result     = $snmpSession->gettable($snmpTable, nogetbulk => 1);
+    };
+    if($@ || !defined($result)) {
+        nimLog(1, "[$tid][$device->{name}] Failed to execute gettable");
+        print STDERR "[$tid][$device->{name}] Failed to execute gettable\n";
+        nimLog(1, "[$tid][$device->{name}] $@");
+
+        my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
+        $AlarmQueue->enqueue({
+            type    => "gettable_fail",
+            device  => $STR_RobotName,
+            source  => $device->{name},
+            dev_id  => $device->{dev_id},
+            hCI     => $hCIAlarm,
+            metric  => "9.1.2:1",
+            payload => {
+                table => $snmpTable,
                 device  => $STR_RobotName,
-                source  => $device->{name},
-                dev_id  => $device->{dev_id},
-                hCI     => $hCIAlarm,
-                metric  => "9.1.2:1",
-                payload => {
-                    table => $snmpTable,
-                    device  => $STR_RobotName,
-                    source  => $device->{name}
+                source  => $device->{name}
+            }
+        });
+
+        nimTimerStop($getTableExecutionTime);
+        nimTimerFree($getTableExecutionTime);
+        return threads->exit();
+    }
+
+    nimTimerStop($getTableExecutionTime);
+    my $executionTimeMs = nimTimerDiff($getTableExecutionTime);
+    nimTimerFree($getTableExecutionTime);
+    print STDOUT "[$tid][$device->{name}] Successfully gettable in ${executionTimeMs}ms\n";
+    nimLog(3, "[$tid][$device->{name}] Successfully gettable in ${executionTimeMs}ms");
+
+    foreach my $testOid (keys %{ $result }) {
+        my $testNameStr = src::utils::ascii_oid($testOid, 0);
+        OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
+            next unless $testNameStr =~ $filter->{nameExpr};
+            my $currTest = $result->{$testOid};
+            my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{ip});
+            
+            # Get timefield
+            my $timeField = $currTest->{"tmnxOamPingResultsLastGoodProbe"};
+
+            # Handle timer
+            {
+                my $timeDate = src::utils::parseSNMPNokiaDate($timeField);
+                my $diff = $context->{startTime} - Time::Piece->strptime($timeDate, "%Y:%m:%d %H:%M:%S");
+                if($diff > 0) {
+                    print STDOUT "[$tid][$device->{name}] Skipping test $testNameStr (last run outdated) \n";
+                    nimLog(3, "[$tid][$device->{name}] Skipping test $testNameStr (last run outdated)");
+                    last OID;
                 }
-            });
-            threads->exit();
-        }
-        else {
-            nimTimerStop($getTableExecutionTime);
-            my $executionTimeMs = nimTimerDiff($getTableExecutionTime);
-            nimTimerFree($getTableExecutionTime);
+            }
 
-            print STDOUT "Successfully gettable $snmpTable on device $device->{name} in ${executionTimeMs}ms\n";
-            nimLog(3, "Successfully gettable $snmpTable on device $device->{name} in ${executionTimeMs}ms");
-        }
+            nimLog(4, "[$tid][$device->{name}] Handle metrics for test with name ($testNameStr)");
+            print STDOUT "[$tid][$device->{name}] Handle metrics for test name ($testNameStr)\n";
 
-        my $isHistoryTable = 0;
+            foreach my $fieldName (@{ $filter->{fields} }) {
+                next unless defined($currTest->{$fieldName});
+                next unless defined($SnmpQoSSchema->{$fieldName});
 
-        # Agregate rows for History type
-        if($snmpTable eq "tmnxOamPingHistoryTable") {
-            $isHistoryTable = 1;
-            my $testByName = {};
-            my $testOids = {};
-            my $agregateResult = {};
+                # Get Type & Value
+                my $QoSType     = $SnmpQoSSchema->{$fieldName};
+                my $fieldValue  = $SnmpQoSValueParser->{$QoSType->{unit}}($currTest->{$fieldName});
+                
+                # Create QoS
+                my $QoSTimestamp = time();
+                my $QOS = nimQoSCreate($QoSType->{name}, $device->{name}, $PollingInterval, -1);
+                ciBindQoS($hCI, $QOS, $QoSType->{metric_name});
+                nimQoSSendValue($QOS, $testNameStr, $fieldValue);
+                ciUnBindQoS($QOS);
+                nimQoSFree($QOS);
 
-            foreach my $testOid (keys %{ $result }) {
-                my $completeTestName = src::utils::ascii_oid($testOid, 1);
-                my @splitOid = split(/\./, $completeTestName);
-                my $seq = pop @splitOid;
-                my $testId = pop @splitOid;
-                my $testNameStr = src::utils::ascii_oid($testOid, 0);
-                $testOids->{$completeTestName} = $testOid; 
-
-                if (not defined($testByName->{$testNameStr})) {
-                    $testByName->{$testNameStr} = [];
-                    $agregateResult->{$testNameStr} = {};
-                }
-
-                my $currTest = $result->{$testOid};
-                push(@{$testByName->{$testNameStr}}, {
-                    seq => $seq,
-                    id => $testId,
-                    completeName => $completeTestName,
-                    tmnxOamPingHistoryInOneWayTime => $SnmpQoSValueParser->{"Microseconds"}($currTest->{tmnxOamPingHistoryInOneWayTime}),
-                    tmnxOamPingHistoryResponse => $SnmpQoSValueParser->{"Microseconds"}($currTest->{tmnxOamPingHistoryResponse}),
-                    tmnxOamPingHistoryOneWayTime => $SnmpQoSValueParser->{"Microseconds"}($currTest->{tmnxOamPingHistoryOneWayTime}),
-                    tmnxOamPingHistoryTime => $currTest->{tmnxOamPingHistoryTime}
+                # Enqueue QoS
+                $QoSHandlers->enqueue({
+                    name    => $QoSType->{name},
+                    type    => $QoSType->{short},
+                    value   => $fieldValue,
+                    probe   => $testNameStr,
+                    device  => $device->{name},
+                    source  => $device->{ip},
+                    dev_id  => $device->{dev_id},
+                    time    => $QoSTimestamp
                 });
             }
-
-            # Filter by id and sequence
-            foreach my $testName (keys %{ $testByName }) {
-                my @tests = @{ $testByName->{$testName} };
-                foreach(@tests) {
-                    my $id  = $_->{id};
-
-                    if (not defined($agregateResult->{$testName}->{$id})) {
-                        $agregateResult->{$testName}->{$id} = [];
-                    }
-                    push(@{ $agregateResult->{$testName}->{$id} }, {
-                        completeName => $_->{completeName},
-                        tmnxOamPingHistoryInOneWayTime => $_->{tmnxOamPingHistoryInOneWayTime},
-                        tmnxOamPingHistoryResponse => $_->{tmnxOamPingHistoryResponse},
-                        tmnxOamPingHistoryOneWayTime => $_->{tmnxOamPingHistoryOneWayTime},
-                        tmnxOamPingHistoryTime => $_->{tmnxOamPingHistoryTime}
-                    });
-                }
-            }
-            my $finalResult = {};
-
-            # Calcule min/max/avg
-            foreach my $testName (keys %{ $agregateResult }) {
-                foreach my $id (keys %{ $agregateResult->{$testName} }) {
-                    my @tests = @{ $agregateResult->{$testName}->{$id} };
-                    my @response = ();
-                    my @oneWayTime = ();
-                    my @inOneWayTime = ();
-
-                    foreach(@tests) {
-                        push(@response, $_->{tmnxOamPingHistoryResponse});
-                        push(@oneWayTime, $_->{tmnxOamPingHistoryOneWayTime});
-                        push(@inOneWayTime, $_->{tmnxOamPingHistoryInOneWayTime});
-                    }
-                    my $completeName = $agregateResult->{$testName}->{$id}[0]->{completeName};
-                    my $time = $agregateResult->{$testName}->{$id}[0]->{tmnxOamPingHistoryTime};
-
-                    $finalResult->{$testOids->{$completeName}} = {
-                        tmnxOamPingHistoryTime => $time,
-                        tmnxOamPingHistoryResponseMin => min(@response),
-                        tmnxOamPingHistoryResponseAvg => mean(@response),
-                        tmnxOamPingHistoryResponseMax => max(@response),
-                        tmnxOamPingHistoryOneWayTimeMin => min(@oneWayTime),
-                        tmnxOamPingHistoryOneWayTimeAvg => mean(@oneWayTime),
-                        tmnxOamPingHistoryOneWayTimeMax => max(@oneWayTime),
-                        tmnxOamPingHistoryInOneWayTimeMin => min(@inOneWayTime),
-                        tmnxOamPingHistoryInOneWayTimeAvg => mean(@inOneWayTime),
-                        tmnxOamPingHistoryInOneWayTimeMax => max(@inOneWayTime)
-                    };
-                }
-            }
-            $result = $finalResult;
-        }
-
-        foreach my $testOid (keys %{ $result }) {
-            my $testNameStr = src::utils::ascii_oid($testOid, 0);
-            OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
-                next unless $testNameStr =~ $filter->{nameExpr};
-                my $currTest = $result->{$testOid};
-                my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{ip});
-                nimLog(4, "Matching test name => $testNameStr");
-                print STDOUT "Matching test name => $testNameStr\n";
-                
-                # Get timefield
-                my $timeField;
-                if($snmpTable eq "tmnxOamPingHistoryTable") {
-                    $timeField = $currTest->{"tmnxOamPingHistoryTime"};
-                }
-                elsif($snmpTable eq "tmnxOamPingResultsTable") {
-                    $timeField = $currTest->{"tmnxOamPingResultsLastGoodProbe"};
-                }
-
-                # Handle timer
-                {
-                    my $timeDate = src::utils::parseSNMPNokiaDate($timeField);
-                    my $diff = $context->{startTime} - Time::Piece->strptime($timeDate, "%Y:%m:%d %H:%M:%S");
-                    if($diff > 0) {
-                        print STDOUT "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}\n";
-                        nimLog(3, "Skipping test (last run outdated) $snmpTable->$testNameStr on device $device->{name}");
-                        last OID;
-                    }
-                }
-
-                foreach my $fieldName (@{ $filter->{fields} }) {
-                    next unless defined($currTest->{$fieldName});
-                    if(!defined($SnmpQoSSchema->{$fieldName})) {
-                        print STDOUT "Unknow QoS type for field $fieldName, table: $snmpTable, device: $device->{name}\n";
-                        nimLog(2, "Unknow QoS type for field $fieldName, table: $snmpTable, device: $device->{name}");
-                        next;
-                    }
-                    my $QoSType     = $SnmpQoSSchema->{$fieldName};
-                    my $fieldValue  = $isHistoryTable == 1 ? $currTest->{$fieldName} : $SnmpQoSValueParser->{$QoSType->{unit}}($currTest->{$fieldName});
-                    
-                    # Create QoS
-                    my $QoSTimestamp = time();
-                    my $QOS = nimQoSCreate($QoSType->{name}, $device->{name}, $PollingInterval, -1);
-                    ciBindQoS($hCI, $QOS, $QoSType->{metric_name});
-                    nimQoSSendValue($QOS, $testNameStr, $fieldValue);
-                    ciUnBindQoS($QOS);
-                    nimQoSFree($QOS);
-
-                    # Enqueue QoS
-                    $QoSHandlers->enqueue({
-                        name    => $QoSType->{name},
-                        type    => $QoSType->{short},
-                        value   => $fieldValue,
-                        probe   => $testNameStr,
-                        device  => $device->{name},
-                        source  => $device->{ip},
-                        dev_id  => $device->{dev_id},
-                        time    => $QoSTimestamp
-                    });
-                }
-                last OID;
-                ciClose($hCI);
-            }
+            last OID;
+            ciClose($hCI);
         }
     }
 
-    print STDOUT "Finished device $device->{name}\n";
-    nimLog(3, "Finished device $device->{name}");
+    print STDOUT "[$tid][$device->{name}] Worker finished!\n";
+    nimLog(3, "[$tid][$device->{name}] Worker finished!");
 }
 
 # Create XML root directory
@@ -1606,6 +1440,10 @@ processProbeConfiguration();
     scriptDieHandler("Unable to retrieve local Nimsoft robot name!\n") if $RC != NIME_OK;
     $STR_RobotName = $robotname;
 }
+
+# Log probe version
+nimLog(3, "Starting probe with VERSION=".VERSION);
+print STDOUT "Starting probe with VERSION=".VERSION."\n";
 
 # Create the Nimsoft probe!
 $sess = Nimbus::Session->new(PROBE_NAME);

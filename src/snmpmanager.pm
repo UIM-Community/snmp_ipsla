@@ -29,6 +29,7 @@ sub new {
 # @return {HashReference}
 sub snmpSysInformations {
     my ($self, $hashRef) = @_;
+    my $tid = threads->tid();
 
     my $sess = $self->initSnmpSession($hashRef);
     return undef if not defined($sess);
@@ -43,8 +44,8 @@ sub snmpSysInformations {
     );
     my @request_result = $sess->get($vars);
     if(scalar(@request_result) == 0) {
-        print STDOUT "Failed to get SNMP systemVarList with hostname $hashRef->{name}, ip $hashRef->{ip}\n";
-        nimLog(2, "Failed to get SNMP systemVarList with hostname $hashRef->{name}, ip $hashRef->{ip}");
+        print STDOUT "[$tid] Failed to get SNMP systemVarList with hostname $hashRef->{name}, ip $hashRef->{ip}\n";
+        nimLog(2, "[$tid] Failed to get SNMP systemVarList with hostname $hashRef->{name}, ip $hashRef->{ip}");
         return undef;
     }
 
@@ -61,8 +62,10 @@ sub snmpSysInformations {
 
 sub initSnmpSession {
     my ($self, $hashRef) = @_;
-    print STDOUT "Create new SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}\n";
-    nimLog(3, "Create new SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}");
+    my $tid = threads->tid();
+
+    print STDOUT "[$tid] Open SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}\n";
+    nimLog(3, "[$tid] Open SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}");
     my $sess = new SNMP::Session(
         DestHost    => $hashRef->{ip},
         Version     => $hashRef->{snmp_version},
@@ -76,13 +79,9 @@ sub initSnmpSession {
         SecLevel    => "authPriv"
     );
     if(!defined($sess)) {
-        print STDOUT "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}.\n";
-        nimLog(2, "Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}.");
+        print STDOUT "[$tid] Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}.\n";
+        nimLog(2, "[$tid] Failed to initialize SNMP session on hostname $hashRef->{name}, ip $hashRef->{ip}.");
         return undef;
-    }
-    else {
-        print STDOUT "SNMP Session initialized successfully for $hashRef->{name}\n";
-        nimLog(3, "SNMP Session initialized successfully for $hashRef->{name}");
     }
     return $sess;
 }
