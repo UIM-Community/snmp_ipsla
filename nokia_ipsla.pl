@@ -67,7 +67,7 @@ my $SnmpQoSValueParser = {
         my ($strValue) = @_;
         return $strValue eq "success";
     },
-    Count => sub {
+    count => sub {
         my ($strValue) = @_;
         my @matches = $strValue =~ /^([0-9]+)/g;
         return $matches[0];
@@ -229,8 +229,8 @@ my $SnmpQoSSchema = {
     },
     tmnxOamPingResultsProbeFailures => {
         name => "QOS_RESPONSEPATHTEST_PROBEFAILURES",
-        unit => "Count",
-        short => "count",
+        unit => "count",
+        short => "#",
         group => "QOS_NETWORK",
         description => "Probe failures",
         flags => 0,
@@ -239,8 +239,8 @@ my $SnmpQoSSchema = {
     },
     tmnxOamPingResultsSentProbes => {
         name => "QOS_RESPONSEPATHTEST_SENTPROBES",
-        unit => "Count",
-        short => "count",
+        unit => "count",
+        short => "#",
         group => "QOS_NETWORK",
         description => "Probes sent",
         flags => 0,
