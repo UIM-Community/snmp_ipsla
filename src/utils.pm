@@ -173,8 +173,6 @@ sub ascii_oid($$) {
     my $i = 0;
     foreach my $c (@splitOids) {
         if ($i == $oidLength - 1) {
-            push @comb, $temptmp if $temptmp ne '';
-            push (@comb, int($c));
             last;
         }
         if ($c > 31 && $c < 127) {
