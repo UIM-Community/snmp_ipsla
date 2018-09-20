@@ -172,9 +172,7 @@ sub ascii_oid($$) {
     my $oidLength = scalar @splitOids;
     my $i = 0;
     foreach my $c (@splitOids) {
-        if ($i == $oidLength - 1) {
-            last;
-        }
+        last if $i == $oidLength - 1;
         if ($c > 31 && $c < 127) {
             $temptmp .= chr($c);
         }
@@ -187,6 +185,7 @@ sub ascii_oid($$) {
     }
 
     # Final push if something is not pushed already
+    push @comb, $temptmp if $temptmp ne '';
     $temptmp = join(".", @comb);
 
     # clean generated ASCII text
