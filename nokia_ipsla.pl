@@ -1391,7 +1391,6 @@ sub snmpWorker {
         OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
             next unless $testNameStr =~ $filter->{nameExpr};
             my $currTest = $result->{$testOid};
-            my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{ip});
             
             # Get timefield
             my $timeField = $currTest->{"tmnxOamPingResultsLastGoodProbe"};
@@ -1407,6 +1406,7 @@ sub snmpWorker {
                 }
             }
 
+            my $hCI = ciOpenRemoteDevice("9.1.2", $testNameStr, $device->{ip});
             nimLog(4, "[$tid][$device->{name}] Handle metrics for test with name ($testNameStr)");
             print STDOUT "[$tid][$device->{name}] Handle metrics for test name ($testNameStr)\n";
 
