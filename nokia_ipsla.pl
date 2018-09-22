@@ -700,7 +700,7 @@ sub hydrateDevicesAttributes {
                 print STDERR "[$tid][$Device->{name}] $@\n";
                 next;
             }
-            my $isPollable      = !defined($result) || ref($result) eq "HASH" ? 1 : 0;
+            my $isPollable      = ref($result) eq "HASH" ? 1 : 0;
             my $isPollableStr   = $isPollable ? "true" : "false";
             print STDOUT "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr\n";
             nimLog(2, "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr");
