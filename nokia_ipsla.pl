@@ -620,8 +620,15 @@ sub processXMLFiles {
     nimTimerStop($processXMLFilesTimer);
     my $execution_time = nimTimerDiff($processXMLFilesTimer);
     nimTimerFree($processXMLFilesTimer);
-    print STDOUT "Successfully processed $processed_files XML file(s) in ${execution_time}ms !\n";
-    nimLog(3, "Successfully processed $processed_files XML file(s) in ${execution_time}ms !");
+
+    if ($processed_files > 0) {
+        print STDOUT "Successfully processed $processed_files XML file(s) in ${execution_time}ms !\n";
+        nimLog(3, "Successfully processed $processed_files XML file(s) in ${execution_time}ms !");
+    }
+    else {
+        print STDOUT "No local XML files detected!\n";
+        nimLog(3, "No local XML files detected!");
+    }
     
     # Run hydrateDevicesAttributes only if at least one XML file has been processed!
     if($processed_files > 0) {
