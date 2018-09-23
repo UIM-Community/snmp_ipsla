@@ -1362,32 +1362,28 @@ sub snmpWorker {
 
     my $getTableExecutionTime = nimTimerCreate();
     nimTimerStart($getTableExecutionTime);
-    my $result;
+    my $result = {};
     eval {
-        $result = $snmpSession->gettable(
-            $tableOid,
-            nogetbulk => 1,
-            columns => [
-                "tmnxOamPingResultsLastGoodProbe",
-                "tmnxOamPingResultsTestRunResult",
-                "tmnxOamPingResultsMinRtt",
-                "tmnxOamPingResultsAverageRtt",
-                "tmnxOamPingResultsMaxRtt",
-                "tmnxOamPingResultsMinTt",
-                "tmnxOamPingResultsAverageTt",
-                "tmnxOamPingResultsMaxTt",
-                "tmnxOamPingResultsInJitter",
-                "tmnxOamPingResultsOutJitter",
-                "tmnxOamPingResultsRtJitter",
-                "tmnxOamPingResultsMinInTt",
-                "tmnxOamPingResultsAverageInTt",
-                "tmnxOamPingResultsMaxInTt",
-                "tmnxOamPingResultsProbeFailures",
-                "tmnxOamPingResultsSentProbes"
-            ]
-        );
+        my $exit = 0;
+        my $vb = new SNMP::Varbind(["tmnxOamPingResultsTable"]);
+        die $snmpSession->{ErrorNum} if $snmpSession->{ErrorNum};
+        do {
+            $snmpSession->getnext($vb);
+            my @arr = @{$vb};
+            if($arr[0] !~ /^tmnxOamPingResults/) {
+                $exit = 1;
+            }
+            else {
+                my $testName = src::utils::ascii_oid($arr[1], 0);
+                if (!defined($result->{$testName})) {
+                    $result->{$testName} = {};
+                }
+                $result->{$testName}->{$arr[0]} = $arr[2];
+            }
+        } until ($snmpSession->{ErrorNum} or $exit);
     };
-    if($@ || !defined($result)) {
+
+    if($@) {
         nimLog(1, "[$tid][$device->{name}] Failed to execute gettable");
         print STDERR "[$tid][$device->{name}] Failed to execute gettable\n";
         nimLog(1, "[$tid][$device->{name}] $@");
@@ -1418,11 +1414,10 @@ sub snmpWorker {
     print STDOUT "[$tid][$device->{name}] Successfully gettable in ${executionTimeMs}ms\n";
     nimLog(3, "[$tid][$device->{name}] Successfully gettable in ${executionTimeMs}ms");
 
-    foreach my $testOid (keys %{ $result }) {
-        my $testNameStr = src::utils::ascii_oid($testOid, 0);
+    foreach my $testNameStr (keys %{ $result }) {
         OID: foreach my $filter (@{ $context->{templates}->{$snmpTable} }) {
             next unless $testNameStr =~ $filter->{nameExpr};
-            my $currTest = $result->{$testOid};
+            my $currTest = $result->{$testNameStr};
             
             # Get timefield
             my $timeField = $currTest->{"tmnxOamPingResultsLastGoodProbe"};
