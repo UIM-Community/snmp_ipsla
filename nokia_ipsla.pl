@@ -1394,6 +1394,11 @@ sub snmpWorker {
             
             # Get timefield
             my $timeField = $currTest->{"tmnxOamPingResultsLastGoodProbe"};
+            if (!defined($timefield)) {
+                print STDOUT "[$tid][$device->{name}] Undefined timefield for test $testNameStr\n";
+                nimLog(3, "[$tid][$device->{name}] Undefined timefield for test $testNameStr");
+                next;
+            }
 
             # Handle timer
             {
