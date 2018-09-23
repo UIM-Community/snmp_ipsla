@@ -1364,7 +1364,27 @@ sub snmpWorker {
     nimTimerStart($getTableExecutionTime);
     my $result;
     eval {
-        $result     = $snmpSession->gettable($tableOid, nogetbulk => 1);
+        $result = $snmpSession->gettable(
+            $tableOid,
+            nogetbulk => 1,
+            columns => [
+                "tmnxOamPingResultsTestRunResult",
+                "tmnxOamPingResultsMinRtt",
+                "tmnxOamPingResultsAverageRtt",
+                "tmnxOamPingResultsMaxRtt",
+                "tmnxOamPingResultsMinTt",
+                "tmnxOamPingResultsAverageTt",
+                "tmnxOamPingResultsMaxTt",
+                "tmnxOamPingResultsInJitter",
+                "tmnxOamPingResultsOutJitter",
+                "tmnxOamPingResultsRtJitter",
+                "tmnxOamPingResultsMinInTt",
+                "tmnxOamPingResultsAverageInTt",
+                "tmnxOamPingResultsMaxInTt",
+                "tmnxOamPingResultsProbeFailures",
+                "tmnxOamPingResultsSentProbes"
+            ]
+        );
     };
     if($@ || !defined($result)) {
         nimLog(1, "[$tid][$device->{name}] Failed to execute gettable");
