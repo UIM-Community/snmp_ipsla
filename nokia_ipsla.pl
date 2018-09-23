@@ -792,17 +792,17 @@ sub removeDevices {
         return;
     }
 
-    my $sth = $dbh->prepare("SELECT device_uuid FROM $DecommissionSQLTable");
+    my $sth = $dbh->prepare("SELECT device FROM $DecommissionSQLTable");
     $sth->execute();
-    my $devicesUUID = {};
+    my $devicesNames = {};
     while(my $row = $sth->fetchrow_hashref) {
-        $devicesUUID->{$row->{device_uuid}} = 0;
+        $devicesNames->{$row->{device}} = 0;
     }
     undef $sth;
     undef $dbh;
 
     # Stop if we have no devicesUUID!
-    if(scalar keys %{ $devicesUUID } == 0) {
+    if(scalar keys %{ $devicesNames } == 0) {
         nimLog(3, "No devices to remove has been found in the MySQL database");
         return;
     }
@@ -815,16 +815,16 @@ sub removeDevices {
         $removeDevicesRunning = 0;
         return;
     }
-    my $sth = $SQLDB->{DB}->prepare("SELECT uuid, snmp_uuid FROM nokia_ipsla_device WHERE is_active=1");
+    my $sth = $SQLDB->{DB}->prepare("SELECT name, uuid, snmp_uuid FROM nokia_ipsla_device WHERE is_active=1");
     $sth->execute();
     while(my $row = $sth->fetchrow_hashref) {
         push(@deviceToRemove, {
             snmp_uuid => $row->{snmp_uuid},
             uuid => $row->{uuid},
-        }) if defined($devicesUUID->{$row->{uuid}});
+        }) if defined($devicesNames->{$row->{name}});
     }
     undef $sth;
-    undef $devicesUUID;
+    undef $devicesNames;
 
     # Remove Device from SQLite table!
     $SQLDB->{DB}->begin_work;
