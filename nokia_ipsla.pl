@@ -1356,11 +1356,15 @@ sub snmpWorker {
     }
 
     my $snmpTable = "tmnxOamPingResultsTable";
+    my $tableOid = &SNMP::translateObj($snmpTable);
+    print STDOUT "[$tid][$device->{name}] Requesting table $snmpTable ($tableOid)\n";
+    nimLog(3, "[$tid][$device->{name}] Requesting table $snmpTable ($tableOid)");
+
     my $getTableExecutionTime = nimTimerCreate();
     nimTimerStart($getTableExecutionTime);
     my $result;
     eval {
-        $result     = $snmpSession->gettable($snmpTable, nogetbulk => 1);
+        $result     = $snmpSession->gettable($tableOid, nogetbulk => 1);
     };
     if($@ || !defined($result)) {
         nimLog(1, "[$tid][$device->{name}] Failed to execute gettable");
