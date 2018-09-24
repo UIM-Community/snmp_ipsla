@@ -2,6 +2,7 @@ package src::snmpmanager;
 
 # Perl Core package(s)
 use strict;
+use Data::Dumper;
 
 # Third-party packages(s)
 use SNMP;
