@@ -1390,9 +1390,8 @@ sub snmpWorker {
     };
 
     if($@) {
-        nimLog(1, "[$tid][$device->{name}] Failed to execute gettable");
-        print STDERR "[$tid][$device->{name}] Failed to execute gettable\n";
-        nimLog(1, "[$tid][$device->{name}] $@");
+        nimLog(1, "[$tid][$device->{name}] Failed to execute gettable: $@");
+        print STDERR "[$tid][$device->{name}] Failed to execute gettable: $@\n";
 
         my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
         $AlarmQueue->enqueue({
