@@ -712,11 +712,6 @@ sub hydrateDevicesAttributes {
             print STDOUT "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr\n";
             nimLog(2, "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr");
 
-            $pollableResponseQueue->enqueue({
-                uuid        => $Device->{dev_uuid},
-                pollable    => $isPollable
-            });
-
             # Generate Reachability QoS
             my $hCI = ciOpenRemoteDevice("9.1.2", "Reachability", $Device->{ip});
             my $QOS = nimQoSCreate("QOS_REACHABILITY", $Device->{name}, $HealthInterval, -1);
@@ -740,6 +735,17 @@ sub hydrateDevicesAttributes {
                     device  => $STR_RobotName,
                     source  => $Device->{name}
                 }
+            });
+
+            # Exlude NON-NOKIA IPSLA SNMP Devices
+            if ($result->{"sysObjectID"} !~ /^tmnx/) {
+                print STDOUT "[$tid][$Device->{name}] Not detected as a NOKIA-IPSLA Device, set is_pollable to 0\n";
+                nimLog(2, "[$tid][$Device->{name}] Not detected as a NOKIA-IPSLA Device, set is_pollable to 0");
+                $isPollable = 0;
+            }
+            $pollableResponseQueue->enqueue({
+                uuid        => $Device->{dev_uuid},
+                pollable    => $isPollable
             });
         }
 

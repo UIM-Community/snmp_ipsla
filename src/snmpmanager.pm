@@ -48,7 +48,8 @@ sub snmpSysInformations {
     my @request_result = $sess->get($vars);
     nimLog(2, "[$tid][$hashRef->{name}] ".Dumper(@request_result));
 
-    if(scalar(@request_result) == 0) {
+    my $len = scalar(@request_result);
+    if($len == 0 || $len != 6) {
         print STDOUT "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList (ip $hashRef->{ip})\n";
         nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList (ip $hashRef->{ip})");
         return undef;
