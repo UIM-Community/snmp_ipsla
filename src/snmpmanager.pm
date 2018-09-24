@@ -37,13 +37,7 @@ sub snmpSysInformations {
     print STDOUT "[$tid][$hashRef->{name}] Get SNMP VarList (ip $hashRef->{ip})\n";
     nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList (ip $hashRef->{ip})");
     my $vars = new SNMP::VarList(
-        ['sysDescr', 0], 
-        ['sysObjectID', 0],
-        ['sysUpTime', 0],
-        ['sysContact', 0],
-        ['sysName', 0],
-        ['sysLocation', 0],
-        ['sysServices', 0]
+        ['sysObjectID', 0]
     );
     my @request_result = $sess->get($vars);
     nimLog(2, "[$tid][$hashRef->{name}] ".Dumper(@request_result));
@@ -56,13 +50,7 @@ sub snmpSysInformations {
     }
 
     return {
-        sysDesc     => $request_result[0],
-        sysObjectID => $request_result[1],
-        sysUpTime   => $request_result[2],
-        sysContact  => $request_result[3],
-        sysName     => $request_result[4],
-        sysLocation => $request_result[5],
-        sysServices => $request_result[6]
+        sysObjectID => $request_result[0]
     };
 }
 
