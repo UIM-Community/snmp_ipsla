@@ -1372,7 +1372,7 @@ sub snmpWorker {
     eval {
         my $exit = 0;
         my $vb = new SNMP::Varbind(["tmnxOamPingResultsTable"]);
-        die $snmpSession->{ErrorNum} if $snmpSession->{ErrorNum};
+        die $snmpSession->{ErrorStr} if $snmpSession->{ErrorNum};
         do {
             $snmpSession->getnext($vb);
             my @arr = @{$vb};
@@ -1387,11 +1387,12 @@ sub snmpWorker {
                 $result->{$testName}->{$arr[0]} = $arr[2];
             }
         } until ($snmpSession->{ErrorNum} or $exit);
+        die $snmpSession->{ErrorStr} if $snmpSession->{ErrorNum};
     };
 
     if($@) {
-        nimLog(1, "[$tid][$device->{name}] Failed to execute gettable: $@");
-        print STDERR "[$tid][$device->{name}] Failed to execute gettable: $@\n";
+        nimLog(1, "[$tid][$device->{name}] Failed to get table tmnxOamPingResultsTable: $@");
+        print STDERR "[$tid][$device->{name}] Failed to get table tmnxOamPingResultsTable: $@\n";
 
         my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
         $AlarmQueue->enqueue({
