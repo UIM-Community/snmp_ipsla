@@ -470,6 +470,9 @@ sub alarmsThread {
         print "Receiving new alarm of type: $hAlarm->{type}\n";
         nimLog(3, "Receiving new alarm of type: $hAlarm->{type}");
         my $type = $Alarm->{$hAlarm->{type}};
+        if (defined($hAlarm->{severity})) {
+            $type->{severity} = $hAlarm->{severity};
+        }
 
         # Parse and Define alarms variables by merging payload into suppkey & message fields
         my $hVariablesRef = defined($hAlarm->{payload}) ? $hAlarm->{payload} : {};
@@ -983,10 +986,8 @@ sub SNMPMetricsHistory {
                 foreach(@messages) {
                     my $threshold = $sec->{$tmnxKey}->{$_}->{threshold};
                     my $active = defined($sec->{$tmnxKey}->{$_}->{active}) ? $sec->{$tmnxKey}->{$_}->{active} : "yes";
-                    my $clear = defined($sec->{$tmnxKey}->{$_}->{clear}) ? $sec->{$tmnxKey}->{$_}->{clear} : "none";
                     push(@ret, {
                         threshold => $threshold,
-                        clear => $clear,
                         message => $_
                     }) if $active eq "yes";
                 }
@@ -1042,8 +1043,7 @@ sub SNMPMetricsHistory {
             }
 
             # Check if we have a clear alarm (if not, just go the next iteration)
-            next if $foundTreshold == 0 && $curr->{clear} eq "none";
-            my $type = $foundTreshold ? $curr->{message} : $curr->{clear};
+            my $severity = $foundTreshold ? undef : 0;
 
             # Open Remote Device
             nimLog(3, "Throw alarm $sql->{name} - Robot: $STR_RobotName, Device: $sql->{device_name} source: $sql->{source}");
@@ -1051,10 +1051,11 @@ sub SNMPMetricsHistory {
 
             # Throw alarm with message
             $AlarmQueue->enqueue({
-                type    => $type,
+                type    => $curr->{message},
                 device  => $STR_RobotName,
                 source  => $sql->{device_name},
                 hCI     => $hCI,
+                severity => $severity,
                 metric  => $QOSMetrics->{$sql->{name}},
                 dev_id  => $sql->{dev_id},
                 payload => {
