@@ -1237,10 +1237,10 @@ sub polling {
             $SQLDB->{DB}->commit;
         };
         nimLog(0, $@) if $@;
-
-        # Start the thread responsible of triggering new history QoS Alarms
-        startMetricHistoryThread();
     }
+
+    # Start the thread responsible of triggering new history QoS Alarms
+    startMetricHistoryThread();
 
     # Create a timeline thread
     # This thread will be responsible to time the creation of new SNMP Worker threads
