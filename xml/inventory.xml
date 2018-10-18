@@ -5,10 +5,10 @@
     <Devices>        
 		<Device>
             <ElementUUID>2202e76b-4b01-2823-6dd8-6f4ddda5f8a8</ElementUUID>
-            <PrimaryIPV4Address>75.3.1.28</PrimaryIPV4Address>
+            <PrimaryIPV4Address>237.151.61.242</PrimaryIPV4Address>
             <Label></Label>
 			<Vendor>NOKIA</Vendor>
-            <Description>SBB PF3</Description>
+            <Description>ANY</Description>
             <PrimaryDeviceRole>Routeur</PrimaryDeviceRole>
             <SnmpProfileUUID>543af64d-50d0-46b5-a81e-4bef93005259</SnmpProfileUUID>
         </Device>	
