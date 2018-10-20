@@ -36,15 +36,15 @@ sub snmpSysInformations {
     return undef if not defined($sess);
 
     print STDOUT "[$tid][$hashRef->{name}] Get SNMP VarList (ip $hashRef->{ip})\n";
-    nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList (ip $hashRef->{ip})");
+    nimLog(2, "[$tid][$hashRef->{name}] Get SNMP VarList (ip $hashRef->{ip})");
     my $vars = new SNMP::VarList(
         ['sysObjectID', 0]
     );
     my @request_result = $sess->get($vars);
 
     if(scalar(@request_result) != 1) {
-        print STDOUT "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList (ip $hashRef->{ip})\n";
-        nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList (ip $hashRef->{ip})");
+        print STDOUT "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList\n";
+        nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList");
         return undef;
     }
 
@@ -57,8 +57,8 @@ sub initSnmpSession {
     my ($self, $hashRef) = @_;
     my $tid = threads->tid();
 
-    print STDOUT "[$tid] Open SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}\n";
-    nimLog(3, "[$tid] Open SNMP Session on hostname $hashRef->{name}, ip $hashRef->{ip}");
+    print STDOUT "[$tid][$hashRef->{name}] Open SNMP Session, ip $hashRef->{ip}\n";
+    nimLog(3, "[$tid][$hashRef->{name}] Open SNMP Session, ip $hashRef->{ip}");
     my $sess = new SNMP::Session(
         DestHost    => $hashRef->{ip},
         Version     => $hashRef->{snmp_version},

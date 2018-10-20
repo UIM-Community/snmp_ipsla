@@ -712,8 +712,8 @@ sub hydrateDevicesAttributes {
             }
             my $isPollable      = ref($result) eq "HASH" ? 1 : 0;
             my $isPollableStr   = $isPollable ? "true" : "false";
-            print STDOUT "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr\n";
-            nimLog(2, "[$tid][$Device->{name}] $Device->{dev_uuid} has been detected has pollable: $isPollableStr");
+            print STDOUT "[$tid][$Device->{name}] is pollable: $isPollableStr\n";
+            nimLog(2, "[$tid][$Device->{name}] is pollable: $isPollableStr");
 
             # Generate Reachability QoS
             my $hCI = ciOpenRemoteDevice("9.1.2", "Reachability", $Device->{ip});
