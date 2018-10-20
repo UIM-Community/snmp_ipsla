@@ -37,16 +37,17 @@ sub snmpSysInformations {
 
     print STDOUT "[$tid][$hashRef->{name}] Get SNMP VarList (ip $hashRef->{ip})\n";
     nimLog(2, "[$tid][$hashRef->{name}] Get SNMP VarList (ip $hashRef->{ip})");
-    my @result = $sess->get(['sysObjectID', 0]);
+    my $var = new SNMP::Varbind(['sysObjectID']);
+    my $sysObjectID = $sess->getnext($var);
 
-    if(scalar(@result) != 1) {
-        print STDOUT "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList\n";
-        nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList");
+    if($sess->{ErrorNum}) {
+        print STDOUT "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList: $sess->{ErrorStr}\n";
+        nimLog(2, "[$tid][$hashRef->{name}] Failed to get SNMP systemVarList: $sess->{ErrorStr}");
         return undef;
     }
 
     return {
-        sysObjectID => $result[0]
+        sysObjectID => $sysObjectID->val
     };
 }
 
