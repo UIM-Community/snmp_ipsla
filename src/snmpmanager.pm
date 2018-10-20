@@ -47,7 +47,7 @@ sub snmpSysInformations {
     }
 
     return {
-        sysObjectID => $sysObjectID->val
+        sysObjectID => $sysObjectID
     };
 }
 
