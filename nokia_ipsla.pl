@@ -467,8 +467,8 @@ sub alarmsThread {
         # Verify Alarm Type
         next if not defined($hAlarm->{type});
         next if not defined($Alarm->{$hAlarm->{type}});
-        print "Receiving new alarm of type: $hAlarm->{type}\n";
-        nimLog(3, "Receiving new alarm of type: $hAlarm->{type}");
+        print "[ALARM] Receiving new alarm of type: $hAlarm->{type}\n";
+        nimLog(3, "[ALARM] Receiving new alarm of type: $hAlarm->{type}");
         my $type = $Alarm->{$hAlarm->{type}};
         if (defined($hAlarm->{severity})) {
             $type->{severity} = $hAlarm->{severity};
@@ -494,12 +494,12 @@ sub alarmsThread {
                 $suppkey,
                 $hAlarm->{source}
             );
-            print STDOUT "Generate new (CI) alarm) with id $nimid\n";
-            nimLog(3, "Generate new (CI) alarm with id $nimid");
+            print STDOUT "[ALARM] (id: $nimid) new CI alarm, source: $hAlarm->{source}\n";
+            nimLog(3, "[ALARM] (id: $nimid) new CI alarm, source: $hAlarm->{source}");
             if($RC != NIME_OK) {
                 my $errorTxt = nimError2Txt($RC);
-                print STDERR "Failed to generate alarm, RC => $RC :: $errorTxt\n";
-                nimLog(2, "Failed to generate alarm, RC => $RC :: $errorTxt");
+                print STDERR "[ALARM] (id: $nimid) Failed to generate alarm, RC => $RC :: $errorTxt\n";
+                nimLog(2, "[ALARM] (id: $nimid) Failed to generate alarm, RC => $RC :: $errorTxt");
             }
             ciClose($hCI);
         }
