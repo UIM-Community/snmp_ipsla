@@ -1414,6 +1414,22 @@ sub snmpWorker {
         nimTimerFree($getTableExecutionTime);
         return threads->exit();
     }
+    else {
+        my $hCIAlarm = ciOpenRemoteDevice("9.1.2", $device->{name}, $device->{ip});
+        $AlarmQueue->enqueue({
+            type    => "gettable_success",
+            device  => $STR_RobotName,
+            source  => $device->{name},
+            dev_id  => $device->{dev_id},
+            hCI     => $hCIAlarm,
+            metric  => "9.1.2:1",
+            payload => {
+                table => $snmpTable,
+                device  => $STR_RobotName,
+                source  => $device->{name}
+            }
+        });
+    }
 
     nimTimerStop($getTableExecutionTime);
     my $executionTimeMs = nimTimerDiff($getTableExecutionTime);
