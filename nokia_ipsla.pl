@@ -1182,6 +1182,42 @@ sub force_decommission {
 
 }
 
+# @callback active_device
+# @desc Active an inactive device
+sub active_device {
+    my ($hMsg, $deviceName) = @_;
+    nimLog(3, "Callback active_device triggered");
+    nimLog(3, "Action requested: Active device => $deviceName");
+
+    my $SQLDB;
+    eval {
+        $SQLDB = src::dbmanager->new('./db/nokia_ipsla.db', $CRED_KEY);
+    };
+    if($@) {
+        my $PDS = Nimbus::PDS->new(); 
+        $PDS->put("error", "Failed to open local SQLite database!", PDS_PCH);
+        return nimSendReply($hMsg, NIME_ERROR, $PDS->data);
+    }
+
+    my $sth = $SQLDB->{DB}->prepare('SELECT uuid FROM nokia_ipsla_device WHERE name=?');
+    $sth->execute($deviceName);
+    my $deviceUUID;
+    while(my $row = $sth->fetchrow_hashref) {
+        $deviceUUID = $row->{uuid};
+    }
+    if(not defined($deviceUUID)) {
+        my $PDS = Nimbus::PDS->new(); 
+        $PDS->put("error", "Unknow local device with name $deviceName", PDS_PCH);
+        return nimSendReply($hMsg, NIME_ERROR, $PDS->data);
+    }
+
+    # Force is_active field to 1!
+    my $uptStmt = $SQLDB->{DB}->prepare('UPDATE nokia_ipsla_device SET is_active=1 WHERE name=?');
+    $uptStmt->execute($deviceName);
+
+    nimSendReply($hMsg, NIME_OK);
+}
+
 # @callback timeout
 # @desc NimSoft probe timeout (run as interval)
 sub timeout {
@@ -1539,6 +1575,7 @@ if ( $sess->server (NIMPORT_ANY, \&timeout, \&restart) == NIME_OK ) {
     $sess->addCallback("get_info");
     $sess->addCallback("force_provisioning");
     $sess->addCallback("remove_device", "deviceName");
+    $sess->addCallback("active_device", "deviceName");
     $sess->addCallback("force_decommission");
 
     # Set timeout to 1000ms (so one second).
