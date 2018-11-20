@@ -494,8 +494,8 @@ sub alarmsThread {
                 $suppkey,
                 $hAlarm->{source}
             );
-            print STDOUT "[ALARM] (id: $nimid) new CI alarm, source: $hAlarm->{source}\n";
-            nimLog(3, "[ALARM] (id: $nimid) new CI alarm, source: $hAlarm->{source}");
+            print STDOUT "[ALARM] (id: $nimid) new CI alarm, severity: $type->{severity}, source: $hAlarm->{source}\n";
+            nimLog(3, "[ALARM] (id: $nimid) new CI alarm, severity: $type->{severity}, source: $hAlarm->{source}");
             if($RC != NIME_OK) {
                 my $errorTxt = nimError2Txt($RC);
                 print STDERR "[ALARM] (id: $nimid) Failed to generate alarm, RC => $RC :: $errorTxt\n";
@@ -1046,7 +1046,7 @@ sub SNMPMetricsHistory {
             my $severity = $foundTreshold ? undef : 0;
 
             # Open Remote Device
-            nimLog(3, "Throw alarm $sql->{name} - Robot: $STR_RobotName, Device: $sql->{device_name} source: $sql->{source}");
+            nimLog(3, "Throw alarm $sql->{name} - Robot: $STR_RobotName, Device: $sql->{device_name}, severity: $severity, source: $sql->{source}");
             my $hCI = ciOpenRemoteDevice("9.1.2", $sql->{device_name}, $sql->{source});
 
             # Throw alarm with message
