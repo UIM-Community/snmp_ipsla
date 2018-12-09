@@ -467,12 +467,11 @@ sub alarmsThread {
         # Verify Alarm Type
         next if not defined($hAlarm->{type});
         next if not defined($Alarm->{$hAlarm->{type}});
-        print "[ALARM] Receiving new alarm of type: $hAlarm->{type}\n";
-        nimLog(3, "[ALARM] Receiving new alarm of type: $hAlarm->{type}");
         my $type = $Alarm->{$hAlarm->{type}};
-        if (defined($hAlarm->{severity})) {
-            $type->{severity} = $hAlarm->{severity};
-        }
+        my $severity = defined($hAlarm->{severity}) ? $hAlarm->{severity} : $type->{severity};
+        
+        print "[ALARM] Receiving new alarm of type: $hAlarm->{type} and severity: $severity\n";
+        nimLog(3, "[ALARM] Receiving new alarm of type: $hAlarm->{type} and severity: $severity");
 
         # Parse and Define alarms variables by merging payload into suppkey & message fields
         my $hVariablesRef = defined($hAlarm->{payload}) ? $hAlarm->{payload} : {};
@@ -486,7 +485,7 @@ sub alarmsThread {
             my ($RC, $nimid) = ciAlarm(
                 $hCI,
                 $hAlarm->{metric},
-                $type->{severity},
+                $severity,
                 $message,
                 "",
                 Nimbus::PDS->new()->data,
