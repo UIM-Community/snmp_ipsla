@@ -1031,7 +1031,7 @@ sub SNMPMetricsHistory {
             my $foundTreshold = 0;
             my $curr = {
                 threshold => 0,
-                message => ""
+                message => $thresholds[0]->{message}
             };
 
             # Check for the lowest matched treshold of the list
