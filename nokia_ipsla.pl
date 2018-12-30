@@ -477,7 +477,7 @@ sub alarmsThread {
         my $hVariablesRef = defined($hAlarm->{payload}) ? $hAlarm->{payload} : {};
         $hVariablesRef->{host} = $hAlarm->{device};
         my $suppkey = src::utils::parseAlarmVariable($type->{supp_key}, $hVariablesRef);
-        my $message = src::utils::parseAlarmVariable($type->{message}, $hVariablesRef);
+        my $message = src::utils::parseAlarmVariable($type->{severity} == 0 ? $type->{clear_message} : $type->{message}, $hVariablesRef);
         undef $hVariablesRef;
 
         if(defined($hAlarm->{hCI})) {
