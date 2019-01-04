@@ -74,6 +74,21 @@ my $SnmpQoSValueParser = {
     }
 };
 
+my $ArithmeticModifier = {
+    div => sub {
+        return $_[0] / $_[1];
+    },
+    mul => sub {
+        return $_[0] * $_[1];
+    },
+    add => sub {
+        return $_[0] + $_[1];
+    },
+    sub => sub {
+        return $_[0] - $_[1];
+    }
+}
+
 # Hash table to retrieve metricId by the metric name
 # This table has been created because of the difficulties to retrieve these with the $SnmpQoSSchema table
 my $QOSMetrics = {
@@ -1341,7 +1356,9 @@ sub polling {
         foreach my $tableName (keys %{ $CFG->{templates} }) {
             my @ProbesFilters = ();
             foreach my $filterId (keys %{ $CFG->{templates}->{$tableName} }) {
-                my $hTest   = {};
+                my $hTest   = {
+                    arithmetic => {}
+                };
                 my @fields  = ();
                 foreach my $fieldKey (keys %{ $CFG->{templates}->{$tableName}->{$filterId} }) {
                     if($fieldKey eq "saa_name") {
@@ -1349,7 +1366,13 @@ sub polling {
                         $hTest->{"nameExpr"} = qr/$saaName/;
                     }
                     else {
-                        push(@fields, $fieldKey) if $CFG->{templates}->{$tableName}->{$filterId}->{$fieldKey}->{active} eq "yes";
+                        if($CFG->{templates}->{$tableName}->{$filterId}->{$fieldKey}->{active} eq "yes") {
+                            my $arithValue = $CFG->{templates}->{$tableName}->{$filterId}->{$fieldKey}->{arithmetic};
+                            if (defined($arithValue)) {
+                                $hTest->{arithmetic}->{$fieldKey} = split(":", $arithValue);
+                            }
+                            push(@fields, $fieldKey);
+                        }
                     }
                 }
                 $hTest->{fields} = \@fields;
@@ -1507,6 +1530,11 @@ sub snmpWorker {
                 # Get Type & Value
                 my $QoSType     = $SnmpQoSSchema->{$fieldName};
                 my $fieldValue  = $SnmpQoSValueParser->{$QoSType->{unit}}($currTest->{$fieldName});
+                if (defined($filter->{arithmetic}->{$fieldName})) {
+                    my $arAction = $filter->{arithmetic}->{$fieldName}[0];
+                    my $arValue = $filter->{arithmetic}->{$fieldName}[1];
+                    $fieldValue = $ArithmeticModifier->{$arAction}($fieldValue, $arValue);
+                }
                 
                 # Create QoS
                 my $QoSTimestamp = time();
