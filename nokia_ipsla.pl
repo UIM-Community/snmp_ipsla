@@ -1028,8 +1028,12 @@ sub SNMPMetricsHistory {
             my $qosValue    = $sql->{value};
             my @thresholds  = @{ $keys->{$sql->{name}} };
             my $foundTreshold = 0;
+
+            my @thresholdsValue;
+            push(@thresholdsValue, $_->{threshold}) for @thresholds;
+
             my $curr = {
-                threshold => 0,
+                threshold => min(@thresholdsValue),
                 message => $thresholds[0]->{message}
             };
 
